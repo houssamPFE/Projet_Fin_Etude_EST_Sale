@@ -24,6 +24,9 @@ backend/_ide_helper.php
 backend/.phpunit.cache/
 .phpunit.result.cache
 
+# ─── Root scripts (delegating to backend/frontend) ───────────────────────────
+/node_modules/
+
 # ─── Frontend (React) ────────────────────────────────────────────────────────
 frontend/node_modules/
 frontend/dist/
