@@ -40,3 +40,9 @@ Thumbs.db
 /.cursor
 /.claude
 *.log
+
+# ─── Local docs (not for the repo) ────────────────────────────────────────────
+CLAUDE.md
+AGENTS.md
+.aider*
+.cursorrules
