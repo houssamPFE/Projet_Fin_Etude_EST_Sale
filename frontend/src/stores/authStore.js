@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import api from '../lib/api';
+import { disconnectEcho } from '../lib/echo';
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -92,6 +93,7 @@ const useAuthStore = create((set, get) => ({
     }
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    disconnectEcho();
     set({ user: null, isAuthenticated: false });
   },
 
