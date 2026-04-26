@@ -61,6 +61,30 @@ export function useSendMessage(conversationId) {
   });
 }
 
+export function useSendAudio(conversationId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (blob) => {
+      const form = new FormData();
+      const ext = blob.type.includes('webm') ? 'webm'
+        : blob.type.includes('ogg') ? 'ogg'
+        : 'webm';
+      form.append('audio', blob, `voice-${Date.now()}.${ext}`);
+
+      const { data } = await api.post(
+        `/conversations/${conversationId}/messages/audio`,
+        form,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      return data;
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+
 export function useCreateConversation() {
   const queryClient = useQueryClient();
   return useMutation({

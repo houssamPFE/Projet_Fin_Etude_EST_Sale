@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Loader2, Bot, User, UserCheck, ShieldAlert, Phone } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Bot, User, UserCheck, ShieldAlert, Phone, Mic, Square, X } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConversation } from '../../hooks/useConversations';
-import { useMessages, useSendMessage } from '../../hooks/useMessages';
+import { useMessages, useSendMessage, useSendAudio } from '../../hooks/useMessages';
+import useAudioRecorder from '../../hooks/useAudioRecorder';
 import { getEcho } from '../../lib/echo';
 import useAuthStore from '../../stores/authStore';
 import toast from 'react-hot-toast';
 import './ConversationPage.css';
+
+function formatDuration(seconds) {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = (seconds % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
 
 const SENDER_ICONS = {
   user: User,
@@ -43,7 +50,20 @@ function MessageBubble({ message, currentUserId }) {
           <span className="msg-sender-label">{SENDER_LABELS[message.sender_type]}</span>
         )}
         <div className={`msg-bubble msg-bubble--${isOwn ? 'own' : message.sender_type}`}>
-          <p className="msg-content">{message.content}</p>
+          {message.type === 'audio' ? (
+            <div className="msg-audio">
+              {message.audio_url ? (
+                <audio controls preload="metadata" src={message.audio_url} />
+              ) : (
+                <span className="msg-audio-pending">Audio en cours d'envoi…</span>
+              )}
+              {message.transcription && (
+                <p className="msg-transcription">{message.transcription}</p>
+              )}
+            </div>
+          ) : (
+            <p className="msg-content">{message.content}</p>
+          )}
         </div>
       </div>
     </motion.div>
@@ -77,6 +97,9 @@ export default function ConversationPage() {
   const { data: conversation } = useConversation(id);
   const { data: messagesData, isLoading: messagesLoading } = useMessages(id);
   const { mutateAsync: sendMessage, isPending: sending } = useSendMessage(id);
+  const { mutateAsync: sendAudio, isPending: sendingAudio } = useSendAudio(id);
+
+  const recorder = useAudioRecorder();
 
   const [input, setInput] = useState('');
   const [aiTyping, setAiTyping] = useState(false);
@@ -149,6 +172,22 @@ export default function ConversationPage() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  useEffect(() => {
+    if (recorder.error) toast.error(recorder.error);
+  }, [recorder.error]);
+
+  const handleSendAudio = async () => {
+    if (!recorder.blob || sendingAudio) return;
+    try {
+      setAiTyping(true);
+      await sendAudio(recorder.blob);
+      recorder.reset();
+    } catch {
+      toast.error('Échec de l\'envoi du message vocal.');
+      setAiTyping(false);
     }
   };
 
@@ -225,25 +264,57 @@ export default function ConversationPage() {
       </div>
 
       {/* Input */}
-      <div className="conv-input-bar">
-        <textarea
-          ref={inputRef}
-          className="conv-input"
-          placeholder="Décrivez votre symptôme..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          rows={1}
-          disabled={conv?.status === 'closed'}
-        />
-        <button
-          className="conv-send-btn"
-          onClick={handleSend}
-          disabled={!input.trim() || sending || conv?.status === 'closed'}
-        >
-          {sending ? <Loader2 size={20} className="spin" /> : <Send size={20} />}
-        </button>
-      </div>
+      {recorder.recording ? (
+        <div className="conv-input-bar conv-input-bar--recording">
+          <span className="rec-dot" />
+          <span className="rec-time">{formatDuration(recorder.seconds)}</span>
+          <span className="rec-label">Enregistrement…</span>
+          <button className="conv-icon-btn conv-icon-btn--danger" onClick={recorder.cancel} title="Annuler">
+            <X size={18} />
+          </button>
+          <button className="conv-send-btn" onClick={recorder.stop} title="Arrêter">
+            <Square size={18} />
+          </button>
+        </div>
+      ) : recorder.blob ? (
+        <div className="conv-input-bar conv-input-bar--preview">
+          <audio controls src={URL.createObjectURL(recorder.blob)} className="rec-preview" />
+          <button className="conv-icon-btn conv-icon-btn--danger" onClick={recorder.reset} title="Annuler">
+            <X size={18} />
+          </button>
+          <button className="conv-send-btn" onClick={handleSendAudio} disabled={sendingAudio}>
+            {sendingAudio ? <Loader2 size={20} className="spin" /> : <Send size={20} />}
+          </button>
+        </div>
+      ) : (
+        <div className="conv-input-bar">
+          <textarea
+            ref={inputRef}
+            className="conv-input"
+            placeholder="Décrivez votre symptôme..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            rows={1}
+            disabled={conv?.status === 'closed'}
+          />
+          <button
+            className="conv-icon-btn"
+            onClick={recorder.start}
+            disabled={conv?.status === 'closed'}
+            title="Enregistrer un message vocal"
+          >
+            <Mic size={18} />
+          </button>
+          <button
+            className="conv-send-btn"
+            onClick={handleSend}
+            disabled={!input.trim() || sending || conv?.status === 'closed'}
+          >
+            {sending ? <Loader2 size={20} className="spin" /> : <Send size={20} />}
+          </button>
+        </div>
+      )}
       {conv?.status === 'closed' && (
         <p className="conv-closed-note">Cette conversation est terminée.</p>
       )}
