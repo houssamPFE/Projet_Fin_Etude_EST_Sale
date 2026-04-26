@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Loader2, Bot, User, UserCheck } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Bot, User, UserCheck, ShieldAlert, Phone } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConversation } from '../../hooks/useConversations';
@@ -115,6 +115,22 @@ export default function ConversationPage() {
     };
   }, [id, user?.id, queryClient]);
 
+  // Safety net 1: clear typing indicator as soon as the last message is from AI/expert
+  useEffect(() => {
+    const list = messagesData?.data ?? [];
+    const last = list[list.length - 1];
+    if (last && last.sender_type !== 'user') {
+      setAiTyping(false);
+    }
+  }, [messagesData]);
+
+  // Safety net 2: hard timeout — never let typing indicator linger more than 20s
+  useEffect(() => {
+    if (!aiTyping) return;
+    const timer = setTimeout(() => setAiTyping(false), 20000);
+    return () => clearTimeout(timer);
+  }, [aiTyping]);
+
   const handleSend = async () => {
     const text = input.trim();
     if (!text || sending) return;
@@ -138,6 +154,9 @@ export default function ConversationPage() {
 
   const messages = messagesData?.data ?? [];
   const conv = conversation?.data ?? null;
+  const hasEmergency = messages.some(
+    (m) => m.metadata?.urgency_level === 'emergency'
+  );
 
   return (
     <div className="conv-page">
@@ -157,9 +176,25 @@ export default function ConversationPage() {
         </div>
         {conv?.status && (
           <span className={`conv-page-badge conv-page-badge--${conv.status}`}>
-            {conv.status === 'ai' ? 'IA' : conv.status === 'expert' ? 'Expert' : conv.status === 'closed' ? 'Fermé' : 'Ouvert'}
+            {conv.status === 'ai' ? 'IA' : conv.status === 'expert' ? 'Médecin' : conv.status === 'closed' ? 'Fermé' : 'Ouvert'}
           </span>
         )}
+      </div>
+
+      {hasEmergency && (
+        <div className="conv-emergency-banner" role="alert">
+          <ShieldAlert size={18} />
+          <div>
+            <strong>Urgence détectée.</strong> Si vos symptômes s'aggravent,
+            appelez immédiatement le SAMU au <a href="tel:141"><Phone size={12} /> 141</a> ou
+            rendez-vous aux urgences les plus proches.
+          </div>
+        </div>
+      )}
+
+      <div className="conv-disclaimer">
+        Les informations fournies par l'IA sont à titre informatif uniquement et
+        ne remplacent pas une consultation médicale. En cas d'urgence, appelez le 141.
       </div>
 
       {/* Messages */}
@@ -172,7 +207,8 @@ export default function ConversationPage() {
           <div className="conv-messages-empty">
             <Bot size={40} style={{ color: 'var(--text-muted)', marginBottom: 12 }} />
             <p style={{ color: 'var(--text-muted)', margin: 0 }}>
-              Commencez par poser votre question. L'IA va vous répondre immédiatement.
+              Décrivez votre symptôme ou posez votre question médicale.
+              L'assistant IA vous répondra immédiatement.
             </p>
           </div>
         ) : (
@@ -193,7 +229,7 @@ export default function ConversationPage() {
         <textarea
           ref={inputRef}
           className="conv-input"
-          placeholder="Posez votre question..."
+          placeholder="Décrivez votre symptôme..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
