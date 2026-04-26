@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useConversation } from '../../hooks/useConversations';
 import { useMessages, useSendMessage, useSendAudio } from '../../hooks/useMessages';
 import useAudioRecorder from '../../hooks/useAudioRecorder';
+import AudioMessage from '../../components/AudioMessage';
 import { getEcho } from '../../lib/echo';
 import useAuthStore from '../../stores/authStore';
 import toast from 'react-hot-toast';
@@ -53,7 +54,10 @@ function MessageBubble({ message, currentUserId }) {
           {message.type === 'audio' ? (
             <div className="msg-audio">
               {message.audio_url ? (
-                <audio controls preload="metadata" src={message.audio_url} />
+                <AudioMessage
+                  src={message.audio_url}
+                  variant={isOwn ? 'own' : message.sender_type}
+                />
               ) : (
                 <span className="msg-audio-pending">Audio en cours d'envoi…</span>
               )}
