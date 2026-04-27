@@ -8,6 +8,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/blur_orb.dart';
 import '../../auth/providers/current_user_provider.dart';
+import '../models/category_model.dart';
 import '../models/expert_model.dart';
 import '../providers/home_providers.dart';
 
@@ -183,8 +184,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 14),
 
                   _CategoryRow(
-                    selected: _selectedCategory,
-                    onSelect: (i) => setState(() => _selectedCategory = i),
+                    selectedId: _selectedCategory,
+                    onSelect: (id) => setState(() => _selectedCategory = id),
                   ).animate().fadeIn(delay: 230.ms),
 
                   const SizedBox(height: 36),
@@ -609,24 +610,37 @@ class _SectionHeader extends StatelessWidget {
 // Categories
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _CategoryRow extends StatelessWidget {
-  final int selected;
+class _CategoryRow extends ConsumerWidget {
+  final int selectedId;
   final ValueChanged<int> onSelect;
-  const _CategoryRow({required this.selected, required this.onSelect});
+  const _CategoryRow({required this.selectedId, required this.onSelect});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categoriesAsync = ref.watch(categoriesProvider);
+
     return SizedBox(
       height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: _kCategories.length,
-        separatorBuilder: (_, index) => const SizedBox(width: 8),
-        itemBuilder: (context, i) => _CategoryChip(
-          item: _kCategories[i],
-          isSelected: selected == i,
-          onTap: () => onSelect(i),
+      child: categoriesAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (e, _) => Center(
+          child: Text(
+            'Erreur lors du chargement',
+            style: AppTextStyles.caption.copyWith(color: AppColors.error),
+          ),
+        ),
+        data: (categories) => ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          itemCount: categories.length,
+          separatorBuilder: (_, index) => const SizedBox(width: 8),
+          itemBuilder: (context, i) => _CategoryChip(
+            category: categories[i],
+            isSelected: selectedId == categories[i].id,
+            onTap: () => onSelect(categories[i].id),
+          ),
         ),
       ),
     );
@@ -634,11 +648,11 @@ class _CategoryRow extends StatelessWidget {
 }
 
 class _CategoryChip extends StatelessWidget {
-  final _CategoryItem item;
+  final CategoryModel category;
   final bool isSelected;
   final VoidCallback onTap;
   const _CategoryChip({
-    required this.item,
+    required this.category,
     required this.isSelected,
     required this.onTap,
   });
@@ -662,14 +676,13 @@ class _CategoryChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              item.icon,
-              size: 14,
-              color: isSelected ? Colors.white : AppColors.textTertiary,
+            Text(
+              category.icon,
+              style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(width: 7),
             Text(
-              item.label,
+              category.name,
               style: AppTextStyles.labelMedium.copyWith(
                 color: isSelected ? Colors.white : AppColors.textSecondary,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
