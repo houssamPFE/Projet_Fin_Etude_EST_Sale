@@ -8,6 +8,8 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/blur_orb.dart';
 import '../../auth/providers/current_user_provider.dart';
+import '../models/expert_model.dart';
+import '../providers/home_providers.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mock data — replaced by API calls when network layer is wired
@@ -684,156 +686,172 @@ class _CategoryChip extends StatelessWidget {
 // Expert cards
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ExpertRow extends StatelessWidget {
+class _ExpertRow extends ConsumerWidget {
   const _ExpertRow();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final expertsAsync = ref.watch(expertsProvider);
+
     return SizedBox(
       height: 238,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: _kExperts.length,
-        separatorBuilder: (_, index) => const SizedBox(width: 12),
-        itemBuilder: (_, i) => _ExpertCard(expert: _kExperts[i]),
+      child: expertsAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (e, _) => Center(
+          child: Text(
+            'Impossible de charger les experts',
+            style: AppTextStyles.caption.copyWith(color: AppColors.error),
+          ),
+        ),
+        data: (experts) => ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          itemCount: experts.length > 4 ? 4 : experts.length,
+          separatorBuilder: (_, index) => const SizedBox(width: 12),
+          itemBuilder: (_, i) => _ExpertCard(expert: experts[i]),
+        ),
       ),
     );
   }
 }
 
 class _ExpertCard extends StatelessWidget {
-  final _ExpertData expert;
+  final ExpertModel expert;
   const _ExpertCard({required this.expert});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 162,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: expert.color.withAlpha(40),
-                  border: Border.all(
-                    color: expert.color.withAlpha(80),
-                    width: 1.5,
+    return GestureDetector(
+      onTap: () => context.push(AppRoutes.expertProfile, extra: expert),
+      child: Container(
+        width: 162,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: expert.avatarColor.withAlpha(40),
+                    border: Border.all(
+                      color: expert.avatarColor.withAlpha(80),
+                      width: 1.5,
+                    ),
                   ),
+                  child: Center(
+                    child: Text(
+                      expert.initials,
+                      style: AppTextStyles.titleMedium.copyWith(
+                        color: expert.avatarColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                if (expert.isAvailable)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.success,
+                        border: Border.all(color: AppColors.card, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            Text(
+              expert.name,
+              style: AppTextStyles.titleSmall.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+
+            const SizedBox(height: 3),
+
+            Text(
+              expert.specialty,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            Row(
+              children: [
+                const Icon(
+                  Icons.star_rounded,
+                  color: Color(0xFFFBBF24),
+                  size: 13,
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  expert.rating.toStringAsFixed(1),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 5),
+
+            Text(
+              '${expert.hourlyRate} MAD/h',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.primaryLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+
+            const SizedBox(height: 14),
+
+            GestureDetector(
+              onTap: () => context.push(AppRoutes.experts),
+              child: Container(
+                width: double.infinity,
+                height: 32,
+                decoration: BoxDecoration(
+                  gradient: AppGradients.button,
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
                   child: Text(
-                    expert.initials,
-                    style: AppTextStyles.titleMedium.copyWith(
-                      color: expert.color,
-                      fontWeight: FontWeight.w700,
+                    'Contacter',
+                    style: AppTextStyles.badge.copyWith(
+                      color: Colors.white,
+                      fontSize: 11,
                     ),
                   ),
                 ),
               ),
-              if (expert.online)
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.success,
-                      border: Border.all(color: AppColors.card, width: 2),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          Text(
-            expert.name,
-            style: AppTextStyles.titleSmall.copyWith(
-              fontWeight: FontWeight.w600,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-
-          const SizedBox(height: 3),
-
-          Text(
-            expert.specialty,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          Row(
-            children: [
-              const Icon(
-                Icons.star_rounded,
-                color: Color(0xFFFBBF24),
-                size: 13,
-              ),
-              const SizedBox(width: 3),
-              Text(
-                expert.rating.toStringAsFixed(1),
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 5),
-
-          Text(
-            '${expert.rate} MAD/h',
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.primaryLight,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-
-          const SizedBox(height: 14),
-
-          GestureDetector(
-            onTap: () => context.push(AppRoutes.experts),
-            child: Container(
-              width: double.infinity,
-              height: 32,
-              decoration: BoxDecoration(
-                gradient: AppGradients.button,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Center(
-                child: Text(
-                  'Contacter',
-                  style: AppTextStyles.badge.copyWith(
-                    color: Colors.white,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
