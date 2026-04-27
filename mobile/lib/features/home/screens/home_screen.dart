@@ -176,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: _SectionHeader(
                       title: 'Catégories',
-                      onSeeAll: () {},
+                      onSeeAll: () => context.push(AppRoutes.experts),
                     ),
                   ).animate().fadeIn(delay: 180.ms),
 
