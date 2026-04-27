@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Loader2, Stethoscope } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCategories } from '../../hooks/useExperts';
-import CustomSelect from '../../components/CustomSelect';
 import { useCreateConversation } from '../../hooks/useMessages';
 import toast from 'react-hot-toast';
 import './NewConversationPage.css';
@@ -18,17 +17,28 @@ export default function NewConversationPage() {
 
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (categories.length > 0) {
+      setCategoryId(categories[0].id);
+    }
+  }, [categories]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!categoryId) { toast.error('Veuillez sélectionner une catégorie.'); return; }
+    if (!categoryId) { toast.error('Catégorie non disponible, réessayez.'); return; }
+    if (!message.trim()) { toast.error('Veuillez écrire votre message initial.'); return; }
     try {
-      const { data } = await createConversation({
+      const response = await createConversation({
         category_id: categoryId,
         title: title || undefined,
         expert_id: expertId || undefined,
+        message: message.trim(),
       });
-      navigate(`/conversations/${data.data.id}`);
+      const conversationId = response.data?.data?.conversation?.id;
+      if (!conversationId) throw new Error('No conversation ID returned');
+      navigate(`/conversations/${conversationId}`);
     } catch {
       toast.error('Impossible de créer la conversation.');
     }
@@ -43,46 +53,48 @@ export default function NewConversationPage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} style={{ width: '100%', maxWidth: 560 }}>
         <div className="new-conv-card card">
           <div className="new-conv-icon">
-            <MessageSquare size={28} />
+            <Stethoscope size={28} />
           </div>
-          <h1 className="new-conv-title">Nouvelle conversation</h1>
+          <h1 className="new-conv-title">Consultation médicale</h1>
           <p className="new-conv-subtitle">
-            Notre IA va analyser votre demande. Si nécessaire, elle escalade vers un expert humain.
+            Décrivez vos symptômes ou votre question. Notre IA médicale vous répond immédiatement et escalade vers un médecin si nécessaire.
           </p>
 
           <form onSubmit={handleSubmit} className="new-conv-form">
-            <div className="form-group">
-              <label className="form-label">Catégorie *</label>
-              <CustomSelect
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                placeholder="Sélectionnez un domaine..."
-                required
-                options={categories.map((cat) => ({ value: cat.id, label: cat.name }))}
-              />
-            </div>
-
             <div className="form-group">
               <label className="form-label">Titre (optionnel)</label>
               <input
                 type="text"
                 className="form-input"
-                placeholder="Ex: Question sur mon contrat de travail"
+                placeholder="Ex: Douleurs abdominales depuis 3 jours"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={255}
               />
             </div>
 
+            <div className="form-group">
+              <label className="form-label">Décrivez votre problème *</label>
+              <textarea
+                className="form-input"
+                placeholder="Décrivez vos symptômes, depuis quand, vos antécédents médicaux si pertinents..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={5}
+                maxLength={5000}
+                required
+              />
+            </div>
+
             {expertId && (
               <p className="new-conv-expert-hint">
-                Un expert spécifique a été sélectionné pour cette conversation.
+                Un médecin spécifique a été sélectionné pour cette consultation.
               </p>
             )}
 
             <button type="submit" className="btn btn-primary btn-full" disabled={isPending}>
-              {isPending ? <Loader2 size={18} className="spin" /> : <MessageSquare size={18} />}
-              {isPending ? 'Création...' : 'Démarrer la conversation'}
+              {isPending ? <Loader2 size={18} className="spin" /> : <Stethoscope size={18} />}
+              {isPending ? 'Création...' : 'Démarrer la consultation'}
             </button>
           </form>
         </div>

@@ -4,11 +4,12 @@ import {
   LayoutDashboard, MessageSquare, Users, Bell,
   Settings, LogOut, Menu, X, Wallet, UserCog,
   ShieldCheck, CreditCard, FolderOpen, UserPlus,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, BookOpen,
 } from 'lucide-react';
 import { useState } from 'react';
 import useAuthStore from '../stores/authStore';
 import NexoraBackground from '../components/NexoraBackground';
+import NotificationDropdown from '../components/NotificationDropdown';
 import './AppLayout.css';
 
 const userNavItems = [
@@ -31,9 +32,10 @@ const expertNavItems = [
 const adminNavItems = [
   { to: '/admin/dashboard',     icon: LayoutDashboard, label: 'Tableau de bord' },
   { to: '/admin/users',         icon: Users,           label: 'Utilisateurs' },
-  { to: '/admin/experts',       icon: ShieldCheck,     label: 'Experts' },
+  { to: '/admin/experts',       icon: ShieldCheck,     label: 'Médecins' },
   { to: '/admin/conversations', icon: MessageSquare,   label: 'Conversations' },
-  { to: '/admin/categories',    icon: FolderOpen,      label: 'Catégories' },
+  { to: '/admin/categories',    icon: FolderOpen,      label: 'Spécialités' },
+  { to: '/admin/knowledge',     icon: BookOpen,        label: 'Base de connaissances' },
   { to: '/admin/payments',      icon: CreditCard,      label: 'Paiements' },
 ];
 
@@ -124,9 +126,7 @@ export default function AppLayout() {
           </button>
           <div style={{ flex: 1 }} />
           <div className="app-header-actions">
-            <NavLink to="/notifications" className="app-header-notif">
-              <Bell size={20} />
-            </NavLink>
+            <NotificationDropdown />
           </div>
         </header>
 

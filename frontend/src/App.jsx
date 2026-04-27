@@ -10,6 +10,8 @@ import AppLayout from './layouts/AppLayout';
 // Auth pages
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 
 // App pages
 import DashboardPage from './pages/DashboardPage';
@@ -27,8 +29,10 @@ import AdminExpertsPage from './pages/admin/AdminExpertsPage';
 import AdminConversationsPage from './pages/admin/AdminConversationsPage';
 import AdminCategoriesPage from './pages/admin/AdminCategoriesPage';
 import AdminPaymentsPage from './pages/admin/AdminPaymentsPage';
+import AdminKnowledgeBasePage from './pages/admin/AdminKnowledgeBasePage';
 import SettingsPage from './pages/settings/SettingsPage';
 import ApplyExpertPage from './pages/settings/ApplyExpertPage';
+import NotificationsPage from './pages/NotificationsPage';
 
 // Route guards
 function PrivateRoute({ children }) {
@@ -93,6 +97,8 @@ export default function App() {
         <Route element={<GuestRoute><AuthLayout /></GuestRoute>}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
         {/* App routes */}
@@ -108,6 +114,7 @@ export default function App() {
           <Route path="/expert/wallet" element={<ExpertWalletPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/apply-expert" element={<ApplyExpertPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Route>
 
         {/* Admin routes */}
@@ -118,6 +125,7 @@ export default function App() {
           <Route path="/admin/conversations" element={<AdminConversationsPage />} />
           <Route path="/admin/categories"    element={<AdminCategoriesPage />} />
           <Route path="/admin/payments"      element={<AdminPaymentsPage />} />
+          <Route path="/admin/knowledge"     element={<AdminKnowledgeBasePage />} />
         </Route>
 
         {/* Default redirect */}

@@ -1,58 +1,139 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Nexora
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Plateforme de télémédecine SaaS qui met en relation des patients et des médecins
+qualifiés, avec l'aide d'un assistant IA pour le tri initial et l'information.
 
-## About Laravel
+Projet de fin d'études — EST Salé.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Concept
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Deux niveaux de réponse :
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Niveau 1 — IA** : analyse la demande du patient, classe la spécialité médicale,
+  évalue l'urgence et répond aux questions générales d'information.
+- **Niveau 2 — Médecin** : si la confiance de l'IA est faible, si l'urgence est
+  signalée, ou à la demande du patient, la conversation est escaladée au meilleur
+  médecin disponible dans la spécialité.
 
-## Learning Laravel
+L'IA ne pose **jamais** de diagnostic et ne prescrit **jamais** de traitement —
+ces actes sont réservés aux médecins validés sur la plateforme.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Spécialités couvertes
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Médecine générale · Pédiatrie · Cardiologie · Dermatologie · Gynécologie ·
+Psychiatrie · Dentisterie · Ophtalmologie
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Stack technique
 
-## Agentic Development
+| Couche | Technologies |
+|---|---|
+| Backend | Laravel 11, PHP 8.3, MySQL 8, Redis 7 |
+| Authentification | Sanctum + JWT refresh, OAuth Google/Facebook, 2FA TOTP |
+| Temps réel | Laravel Reverb (WebSocket) + Laravel Echo |
+| IA | OpenAI GPT-4 orchestré via n8n |
+| Audio | Whisper (transcription) + ElevenLabs (synthèse vocale) |
+| RAG | Qdrant (base de données vectorielle) |
+| Stockage | AWS S3 / MinIO en local |
+| Paiement | Stripe + CMI (Maroc) |
+| Frontend Web | React 18 + Vite + Tailwind |
+| Mobile | Flutter |
+| Infra | Docker Compose, GitHub Actions |
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Architecture
 
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│  React SPA   │     │  Flutter App │     │ Admin Panel  │
+└──────┬───────┘     └──────┬───────┘     └──────┬───────┘
+       │                    │                    │
+       └────────────────────┴────────────────────┘
+                            │ HTTPS + WebSocket
+                            ▼
+                  ┌──────────────────────┐
+                  │   Laravel API        │
+                  │   (Sanctum + Reverb) │
+                  └──────────┬───────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        ▼                    ▼                    ▼
+   ┌─────────┐         ┌─────────┐         ┌────────────┐
+   │  MySQL  │         │  Redis  │         │     n8n    │
+   └─────────┘         │ (queue) │         │ (workflows)│
+                       └─────────┘         └─────┬──────┘
+                                                 │
+                                  ┌──────────────┼──────────────┐
+                                  ▼              ▼              ▼
+                              ┌────────┐    ┌────────┐     ┌─────────┐
+                              │ OpenAI │    │ Qdrant │     │   S3    │
+                              └────────┘    └────────┘     └─────────┘
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Démarrage local
 
-## Contributing
+Pré-requis : Docker Desktop, Node 20+, Git.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+# 1. Cloner le repo
+git clone https://github.com/houssamPFE/Projet_Fin_Etude_EST_Sale.git nexora
+cd nexora
 
-## Code of Conduct
+# 2. Configurer les variables d'environnement
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# 3. Démarrer les conteneurs
+docker compose up -d
 
-## Security Vulnerabilities
+# 4. Installer les dépendances backend + générer la clé
+docker compose exec app composer install
+docker compose exec app php artisan key:generate
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# 5. Migrer + seeder la base
+docker compose exec app php artisan migrate:fresh --seed
 
-## License
+# 6. Installer les dépendances frontend
+cd frontend
+npm install
+npm run dev
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+L'application est accessible sur :
+
+- Frontend : http://localhost:5173
+- API : http://localhost:8000/api/v1
+- Reverb (WebSocket) : ws://localhost:8080
+- n8n : http://localhost:5678
+
+## Comptes de test (après seed)
+
+| Rôle | Email | Mot de passe |
+|---|---|---|
+| Admin | admin@nexora.ma | password |
+| Patient | houssam@test.ma | password |
+| Médecin (généraliste) | karim.bensouda@nexora.ma | password |
+| Médecin (pédiatre) | amina.berrada@nexora.ma | password |
+
+## Structure du projet
+
+```
+.
+├── backend/          # Laravel 11 — API REST + WebSocket
+│   ├── app/
+│   ├── database/migrations
+│   ├── database/seeders
+│   └── routes/api.php
+├── frontend/         # React + Vite — interface web
+│   └── src/
+├── docker-compose.yml
+└── README.md
+```
+
+## Avertissement médical
+
+Les informations fournies par l'assistant IA sont à titre informatif uniquement
+et ne remplacent pas une consultation médicale. En cas d'urgence vitale, appelez
+immédiatement le **SAMU au 141** ou rendez-vous aux urgences les plus proches.
+
+## Équipe
+
+Projet réalisé dans le cadre du PFE à l'EST Salé.

@@ -3,5 +3,8 @@
     "scripts": {
         "dev": "cd backend && npm run dev",
         "build": "cd backend && npm run build"
+    },
+    "dependencies": {
+        "pdfkit": "^0.18.0"
     }
 }

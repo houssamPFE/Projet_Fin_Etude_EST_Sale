@@ -128,6 +128,11 @@
 .auth-switch a:hover {
   color: #93C5FD;
 }
+.auth-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 
 /* OTP input */
 .otp-inputs {

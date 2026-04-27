@@ -133,3 +133,50 @@ export function useDeleteCategory() {
     onError: (err) => toast.error(err.response?.data?.message || 'Erreur.'),
   });
 }
+
+// ── Knowledge base ───────────────────────────────────────────────
+export function useAdminKnowledge(params = {}) {
+  return useQuery({
+    queryKey: ['admin', 'knowledge', params],
+    queryFn: async () => {
+      const { data } = await api.get('/admin/knowledge', { params });
+      return data;
+    },
+  });
+}
+
+export function useCreateKnowledge() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) => api.post('/admin/knowledge', payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'knowledge'] });
+      toast.success('Entrée créée.');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Erreur lors de la création.'),
+  });
+}
+
+export function useUpdateKnowledge() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...payload }) => api.put(`/admin/knowledge/${id}`, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'knowledge'] });
+      toast.success('Entrée mise à jour.');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Erreur.'),
+  });
+}
+
+export function useDeleteKnowledge() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => api.delete(`/admin/knowledge/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'knowledge'] });
+      toast.success('Entrée supprimée.');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Erreur.'),
+  });
+}
