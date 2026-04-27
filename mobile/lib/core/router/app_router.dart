@@ -4,6 +4,7 @@ import '../../features/auth/screens/welcome_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/home/screens/home_screen.dart';
+import '../../features/home/screens/categories_explore_screen.dart';
 import '../../features/experts/screens/experts_screen.dart';
 import '../../features/experts/screens/expert_profile_screen.dart';
 import '../../features/home/models/expert_model.dart';
@@ -19,6 +20,7 @@ abstract class AppRoutes {
   static const login = '/login';
   static const register = '/register';
   static const home = '/home';
+  static const categoriesExplore = '/categories-explore';
   static const experts = '/experts';
   static const expertProfile = '/expert-profile';
   static const profile = '/profile';
@@ -48,6 +50,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.home,
       builder: (_, _) => const HomeScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.categoriesExplore,
+      builder: (_, _) => const CategoriesExploreScreen(),
     ),
     GoRoute(
       path: AppRoutes.experts,
