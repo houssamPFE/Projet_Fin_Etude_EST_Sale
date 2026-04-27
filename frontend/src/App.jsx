@@ -32,7 +32,7 @@ import AdminPaymentsPage from './pages/admin/AdminPaymentsPage';
 import AdminKnowledgeBasePage from './pages/admin/AdminKnowledgeBasePage';
 import SettingsPage from './pages/settings/SettingsPage';
 import ApplyExpertPage from './pages/settings/ApplyExpertPage';
-import NotificationsPage from './pages/NotificationsPage';
+// import NotificationsPage from './pages/NotificationsPage'; // TODO: S19
 
 // Route guards
 function PrivateRoute({ children }) {
@@ -114,7 +114,7 @@ export default function App() {
           <Route path="/expert/wallet" element={<ExpertWalletPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/apply-expert" element={<ApplyExpertPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
+          {/* <Route path="/notifications" element={<NotificationsPage />} /> */}
         </Route>
 
         {/* Admin routes */}

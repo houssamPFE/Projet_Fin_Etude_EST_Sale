@@ -5,6 +5,7 @@ class ExpertModel {
   final String name;
   final String email;
   final String? avatarUrl;
+  final int categoryId;
   final String specialty; // category name
   final String specialtyIcon;
   final String bio;
@@ -18,6 +19,7 @@ class ExpertModel {
     required this.name,
     required this.email,
     this.avatarUrl,
+    required this.categoryId,
     required this.specialty,
     required this.specialtyIcon,
     required this.bio,
@@ -55,6 +57,7 @@ class ExpertModel {
       name: user?['name'] as String? ?? 'Unknown',
       email: user?['email'] as String? ?? '',
       avatarUrl: user?['avatar_url'] as String?,
+      categoryId: category?['id'] as int? ?? 0,
       specialty: category?['name'] as String? ?? 'Unknown',
       specialtyIcon: category?['icon'] as String? ?? '🏥',
       bio: json['bio'] as String? ?? '',

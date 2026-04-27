@@ -6,7 +6,7 @@ import '../../features/auth/screens/register_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/experts/screens/experts_screen.dart';
 import '../../features/experts/screens/expert_profile_screen.dart';
-import '../../features/experts/models/expert_model.dart';
+import '../../features/home/models/expert_model.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/chat/screens/chat_screen.dart';
 
@@ -57,17 +57,7 @@ final appRouter = GoRouter(
       path: AppRoutes.expertProfile,
       builder: (context, state) {
         final expert = state.extra! as ExpertModel;
-        return ExpertProfileScreen(
-          name: expert.name,
-          specialty: expert.specialty,
-          category: expert.category,
-          rating: expert.rating,
-          reviewCount: expert.reviewCount,
-          rate: expert.rate,
-          initials: expert.initials,
-          color: expert.color,
-          online: expert.online,
-        );
+        return ExpertProfileScreen(expert: expert);
       },
     ),
     GoRoute(

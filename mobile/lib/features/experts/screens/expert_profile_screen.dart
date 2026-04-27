@@ -6,6 +6,7 @@ import '../../../core/theme/app_gradients.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../home/models/expert_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data classes
@@ -205,31 +206,24 @@ const _kReviews = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ExpertProfileScreen extends StatelessWidget {
-  final String name;
-  final String specialty;
-  final String category;
-  final double rating;
-  final int reviewCount;
-  final int rate;
-  final String initials;
-  final Color color;
-  final bool online;
+  final ExpertModel expert;
 
   const ExpertProfileScreen({
     super.key,
-    required this.name,
-    required this.specialty,
-    required this.category,
-    required this.rating,
-    required this.reviewCount,
-    required this.rate,
-    required this.initials,
-    required this.color,
-    required this.online,
+    required this.expert,
   });
 
-  String get _bio => _kBios[category] ?? _kDefaultBio;
-  List<_ServiceData> get _services => _kServices[category] ?? _kDefaultServices;
+  String get name => expert.name;
+  String get specialty => expert.specialty;
+  double get rating => expert.rating;
+  int get reviewCount => expert.reviewCount;
+  int get rate => expert.hourlyRate;
+  String get initials => expert.initials;
+  Color get color => expert.avatarColor;
+  bool get online => expert.isAvailable;
+
+  String get _bio => expert.bio;
+  List<_ServiceData> get _services => _kServices[expert.specialty] ?? _kDefaultServices;
 
   @override
   Widget build(BuildContext context) {

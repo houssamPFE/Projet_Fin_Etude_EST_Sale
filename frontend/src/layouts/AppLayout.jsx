@@ -9,7 +9,7 @@ import {
 import { useState } from 'react';
 import useAuthStore from '../stores/authStore';
 import NexoraBackground from '../components/NexoraBackground';
-import NotificationDropdown from '../components/NotificationDropdown';
+// import NotificationDropdown from '../components/NotificationDropdown'; // TODO: S19
 import './AppLayout.css';
 
 const userNavItems = [
@@ -126,7 +126,7 @@ export default function AppLayout() {
           </button>
           <div style={{ flex: 1 }} />
           <div className="app-header-actions">
-            <NotificationDropdown />
+            {/* <NotificationDropdown /> */}
           </div>
         </header>
 
