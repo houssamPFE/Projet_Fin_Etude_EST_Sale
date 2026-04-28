@@ -115,6 +115,7 @@ class AuthService
                 'password'          => Hash::make(Str::random(32)),
                 'email_verified_at' => now(), // OAuth emails are pre-verified
                 'language'          => 'fr',
+                'is_active'         => true,
             ]);
         }
 
