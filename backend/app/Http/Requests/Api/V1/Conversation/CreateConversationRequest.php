@@ -15,6 +15,7 @@ class CreateConversationRequest extends FormRequest
     {
         return [
             'category_id' => ['required', 'exists:categories,id'],
+            'expert_id'   => ['nullable', 'exists:experts,id'],
             'title'       => ['nullable', 'string', 'max:255'],
             'message'     => ['required', 'string', 'max:5000'],
         ];

@@ -12,6 +12,7 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import SocialAuthCallbackPage from './pages/auth/SocialAuthCallbackPage';
 
 // App pages
 import DashboardPage from './pages/DashboardPage';
@@ -20,6 +21,7 @@ import ExpertDetailPage from './pages/experts/ExpertDetailPage';
 import ConversationsPage from './pages/conversations/ConversationsPage';
 import ConversationPage from './pages/conversations/ConversationPage';
 import NewConversationPage from './pages/conversations/NewConversationPage';
+import LandingPage from './pages/LandingPage';
 import ExpertDashboardPage from './pages/expert/ExpertDashboardPage';
 import ExpertProfilePage from './pages/expert/ExpertProfilePage';
 import ExpertWalletPage from './pages/expert/ExpertWalletPage';
@@ -99,7 +101,10 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/auth/social/callback" element={<SocialAuthCallbackPage />} />
         </Route>
+
+        <Route path="/" element={<GuestRoute><LandingPage /></GuestRoute>} />
 
         {/* App routes */}
         <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>

@@ -12,6 +12,7 @@ use App\Models\Expert;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ConversationService
 {
@@ -23,15 +24,38 @@ class ConversationService
      */
     public function create(User $user, array $data): Conversation
     {
+        $expert = null;
+
+        if (! empty($data['expert_id'])) {
+            $expert = Expert::validated()
+                ->available()
+                ->with('user')
+                ->find($data['expert_id']);
+
+            if (! $expert) {
+                throw ValidationException::withMessages([
+                    'expert_id' => 'Le medecin selectionne est indisponible ou invalide.',
+                ]);
+            }
+        }
+
         $conversation = Conversation::create([
             'user_id'     => $user->id,
-            'category_id' => $data['category_id'],
+            'expert_id'   => $expert?->id,
+            'category_id' => $expert?->category_id ?? $data['category_id'],
             'title'       => $data['title'] ?? null,
-            'status'      => ConversationStatus::Ai,
-            'channel'     => ConversationChannel::Ai,
+            'status'      => $expert ? ConversationStatus::Expert : ConversationStatus::Ai,
+            'channel'     => $expert ? ConversationChannel::Expert : ConversationChannel::Ai,
         ]);
 
-        return $conversation->load(['user', 'category']);
+        $conversation->load(['user', 'category', 'expert.user']);
+
+        if ($expert) {
+            event(new ConversationAssigned($conversation));
+            $this->notificationService->conversationAssigned($expert->user, $conversation->id);
+        }
+
+        return $conversation;
     }
 
     /**

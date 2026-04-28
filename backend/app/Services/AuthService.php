@@ -22,6 +22,7 @@ class AuthService
             'name'      => $data['name'],
             'email'     => $data['email'],
             'password'  => $data['password'],
+            'phone'     => $data['phone'] ?? null,
             'language'  => $data['language'] ?? 'fr',
             'role'      => 'user',
             'is_active' => true,
@@ -107,13 +108,17 @@ class AuthService
 
         // 3. Create a new user
         if (! $user) {
+            $email = $socialUser->getEmail() ?? $socialUser->getId() . '@' . $provider . '.nexora.local';
+
+            $avatar = $socialUser->getAvatar();
+
             $user = User::create([
                 'name'              => $socialUser->getName() ?? $socialUser->getNickname() ?? 'Utilisateur',
-                'email'             => $socialUser->getEmail(),
+                'email'             => $email,
                 $providerIdColumn   => $socialUser->getId(),
-                'avatar_url'        => $socialUser->getAvatar(),
+                'avatar_url'        => $avatar ? substr($avatar, 0, 255) : null,
                 'password'          => Hash::make(Str::random(32)),
-                'email_verified_at' => now(), // OAuth emails are pre-verified
+                'email_verified_at' => now(),
                 'language'          => 'fr',
                 'is_active'         => true,
             ]);

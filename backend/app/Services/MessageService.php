@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ConversationStatus;
 use App\Enums\MessageSenderType;
 use App\Enums\MessageType;
 use App\Events\MessageRead;
@@ -32,7 +33,7 @@ class MessageService
         ]);
 
         // Trigger AI processing for user messages in AI-mode conversations
-        if ($senderType === MessageSenderType::User) {
+        if ($senderType === MessageSenderType::User && $conversation->status === ConversationStatus::Ai) {
             ProcessMessageJob::dispatch($message);
         }
 
@@ -61,7 +62,7 @@ class MessageService
             'media_url'       => $path,
         ]);
 
-        if ($senderType === MessageSenderType::User) {
+        if ($senderType === MessageSenderType::User && $conversation->status === ConversationStatus::Ai) {
             TranscribeAudioJob::dispatch($message);
         }
 
