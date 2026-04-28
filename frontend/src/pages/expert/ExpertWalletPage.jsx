@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { Wallet, TrendingUp, ArrowDownCircle, Loader2, ArrowUpCircle } from 'lucide-react';
 import { useExpertWallet, useExpertTransactions } from '../../hooks/useExpertPanel';
 import './ExpertWalletPage.css';

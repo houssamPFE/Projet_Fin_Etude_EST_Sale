@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import {
   Star, Clock, ArrowLeft, CheckCircle, Loader2, MessageSquare,
   ShieldCheck, MapPin, Languages, Award, Calendar, Activity,

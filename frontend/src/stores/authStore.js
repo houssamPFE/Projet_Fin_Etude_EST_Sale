@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import api from '../lib/api';
 import { disconnectEcho } from '../lib/echo';
 
-const useAuthStore = create((set, get) => ({
+const useAuthStore = create((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
