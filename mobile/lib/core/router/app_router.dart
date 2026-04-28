@@ -81,6 +81,7 @@ final appRouter = GoRouter(
           subtitle: args['subtitle'] as String,
           online: args['online'] as bool? ?? true,
           isAi: args['isAi'] as bool? ?? false,
+          conversationId: args['conversationId'] as int?,
         );
       },
     ),

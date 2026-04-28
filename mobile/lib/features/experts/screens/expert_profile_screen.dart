@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_gradients.dart';
@@ -7,6 +8,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../home/models/expert_model.dart';
+import '../../chat/providers/conversations_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data classes
@@ -327,6 +329,7 @@ class ExpertProfileScreen extends StatelessWidget {
             left: 0,
             right: 0,
             child: _BottomCTA(
+              categoryId: expert.categoryId,
               rate: rate,
               bottomPadding: bottomPadding,
               name: name,
@@ -969,7 +972,8 @@ class _ReviewCard extends StatelessWidget {
 // Sticky bottom CTA
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _BottomCTA extends StatelessWidget {
+class _BottomCTA extends ConsumerStatefulWidget {
+  final int categoryId;
   final int rate;
   final double bottomPadding;
   final String name;
@@ -979,6 +983,7 @@ class _BottomCTA extends StatelessWidget {
   final bool online;
 
   const _BottomCTA({
+    required this.categoryId,
     required this.rate,
     required this.bottomPadding,
     required this.name,
@@ -989,9 +994,50 @@ class _BottomCTA extends StatelessWidget {
   });
 
   @override
+  ConsumerState<_BottomCTA> createState() => _BottomCTAState();
+}
+
+class _BottomCTAState extends ConsumerState<_BottomCTA> {
+  bool _loading = false;
+
+  Future<void> _startConversation() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+
+    try {
+      final service = ref.read(conversationServiceProvider);
+      final conv = await service.createConversation(
+        categoryId: widget.categoryId,
+        message: 'Bonjour ${widget.name}, j\'aimerais discuter avec vous.',
+      );
+      final conversationId = conv['id'] as int;
+
+      if (!mounted) return;
+      ref.invalidate(conversationsProvider);
+
+      context.push(AppRoutes.chat, extra: {
+        'name': widget.name,
+        'initials': widget.initials,
+        'color': widget.color,
+        'subtitle': widget.specialty,
+        'online': widget.online,
+        'isAi': false,
+        'conversationId': conversationId,
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(20, 14, 20, 14 + bottomPadding),
+      padding: EdgeInsets.fromLTRB(20, 14, 20, 14 + widget.bottomPadding),
       decoration: BoxDecoration(
         color: AppColors.background.withAlpha(242),
         border: const Border(top: BorderSide(color: AppColors.border)),
@@ -1009,7 +1055,7 @@ class _BottomCTA extends StatelessWidget {
                 ),
               ),
               Text(
-                '$rate MAD/h',
+                '${widget.rate} MAD/h',
                 style: AppTextStyles.headlineSmall.copyWith(
                   color: AppColors.primaryLight,
                   fontWeight: FontWeight.w700,
@@ -1020,15 +1066,8 @@ class _BottomCTA extends StatelessWidget {
           const SizedBox(width: 20),
           Expanded(
             child: NexoraGradientButton(
-              label: 'Démarrer une conversation',
-              onTap: () => context.push(AppRoutes.chat, extra: {
-                'name': name,
-                'initials': initials,
-                'color': color,
-                'subtitle': specialty,
-                'online': online,
-                'isAi': false,
-              }),
+              label: _loading ? 'Chargement...' : 'Démarrer une conversation',
+              onTap: _loading ? () {} : _startConversation,
               height: 50,
             ),
           ),

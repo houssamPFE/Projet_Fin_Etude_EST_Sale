@@ -11,9 +11,10 @@ import '../../auth/providers/current_user_provider.dart';
 import '../models/category_model.dart';
 import '../models/expert_model.dart';
 import '../providers/home_providers.dart';
+import '../../chat/providers/conversations_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mock data — replaced by API calls when network layer is wired
+// Category mock data (small local list)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _CategoryItem {
@@ -88,44 +89,7 @@ const _kExperts = [
   ),
 ];
 
-class _ConversationData {
-  final String title;
-  final String preview;
-  final String time;
-  final bool isAi;
-  final Color color;
-  const _ConversationData({
-    required this.title,
-    required this.preview,
-    required this.time,
-    required this.isAi,
-    required this.color,
-  });
-}
-
-const _kConversations = [
-  _ConversationData(
-    title: 'Question fiscale — TVA',
-    preview: "L'IA a répondu à votre question sur la TVA.",
-    time: 'Il y a 2h',
-    isAi: true,
-    color: Color(0xFF6366F1),
-  ),
-  _ConversationData(
-    title: 'Contrat de travail',
-    preview: 'Me. Idrissi : Je vais examiner votre contrat...',
-    time: 'Hier',
-    isAi: false,
-    color: Color(0xFF8B5CF6),
-  ),
-  _ConversationData(
-    title: 'Bilan médical annuel',
-    preview: 'Dr. Benali : Vos résultats semblent normaux.',
-    time: 'Lun.',
-    isAi: false,
-    color: Color(0xFF3B82F6),
-  ),
-];
+// Conversations loaded from backend via provider
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HomeScreen
@@ -874,112 +838,136 @@ class _ExpertCard extends StatelessWidget {
 // Conversation list
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ConversationList extends StatelessWidget {
+class _ConversationList extends ConsumerWidget {
   const _ConversationList();
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: _kConversations
-          .map((c) => _ConversationTile(conversation: c))
-          .toList(),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final conversations = ref.watch(conversationsProvider);
+
+    return conversations.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(),
+      ),
+      error: (err, st) => Center(
+        child: Text('Erreur: $err'),
+      ),
+      data: (convs) => convs.isEmpty
+          ? const Center(
+              child: Text('Aucune conversation'),
+            )
+          : Column(
+              children: convs
+                  .map((c) => _ConversationTile(conversation: c))
+                  .toList(),
+            ),
     );
   }
 }
 
 class _ConversationTile extends StatelessWidget {
-  final _ConversationData conversation;
+  final Map<String, dynamic> conversation;
   const _ConversationTile({required this.conversation});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: conversation.color.withAlpha(26),
-              border: Border.all(color: conversation.color.withAlpha(60)),
+    final id = conversation['id'] as int?;
+    final expert = conversation['expert'] as Map<String, dynamic>?;
+    final expertUser = expert?['user'] as Map<String, dynamic>?;
+    final expertName = expertUser?['name'] as String? ?? 'Expert';
+    final lastMessage =
+        (conversation['last_message'] as Map<String, dynamic>?)
+            ?['content'] as String? ??
+        'Aucun message';
+    final color = Color(0xFF8B5CF6);
+
+    return GestureDetector(
+      onTap: id != null
+          ? () => context.push(AppRoutes.chat, extra: {
+                'name': expertName,
+                'initials': 'EX',
+                'color': color,
+                'subtitle': 'Expert',
+                'online': true,
+                'isAi': false,
+                'conversationId': id,
+              })
+          : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withAlpha(26),
+                border: Border.all(color: color.withAlpha(60)),
+              ),
+              child: Icon(
+                Icons.person_rounded,
+                color: color,
+                size: 20,
+              ),
             ),
-            child: Icon(
-              conversation.isAi
-                  ? Icons.auto_awesome_rounded
-                  : Icons.person_rounded,
-              color: conversation.color,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        conversation.title,
-                        style: AppTextStyles.titleSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      conversation.time,
-                      style: AppTextStyles.caption,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        conversation.preview,
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: conversation.color.withAlpha(26),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: conversation.color.withAlpha(60),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    expertName,
+                    style: AppTextStyles.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          lastMessage,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      child: Text(
-                        conversation.isAi ? 'IA' : 'Expert',
-                        style: AppTextStyles.badge.copyWith(
-                          color: conversation.color,
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: color.withAlpha(26),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: color.withAlpha(60),
+                          ),
+                        ),
+                        child: Text(
+                          'Expert',
+                          style: AppTextStyles.badge.copyWith(
+                            color: color,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

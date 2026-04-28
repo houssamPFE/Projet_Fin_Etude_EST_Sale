@@ -1,90 +1,22 @@
 // ignore_for_file: unused_field
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/network/dio_client.dart';
 import '../models/chat_message.dart';
+import '../services/conversation_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mock responses — replace with WebSocket payloads when integrating
+// AI Mock Responses (for IA Nexora chat — no backend conversation needed)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _kAiResponses = [
-  'Je comprends. Pouvez-vous me donner plus de détails sur vos symptômes ?',
+  'Bonjour ! Je suis l\'IA Nexora. Comment puis-je vous aider aujourd\'hui ?',
+  'Je comprends. Pouvez-vous me donner plus de détails ?',
   'Merci pour cette précision. D\'après mon analyse, je vous recommande de consulter un spécialiste.',
-  'C\'est noté. Depuis combien de temps ressentez-vous ces symptômes ?',
-  'Je vais analyser votre demande. Avez-vous déjà consulté un médecin pour ce problème ?',
+  'C\'est noté. Depuis combien de temps ressentez-vous cela ?',
+  'Je vais analyser votre demande. Avez-vous déjà consulté un expert pour ce problème ?',
+  'D\'accord. Je peux vous mettre en relation avec un expert si vous le souhaitez.',
 ];
-
-const _kExpertResponses = [
-  'Merci pour cette précision. Je vais examiner cela attentivement.',
-  'C\'est important à noter. Pouvez-vous me décrire la fréquence de ces épisodes ?',
-  'D\'accord. Je vous recommande de faire un bilan complet pour confirmer le diagnostic.',
-  'Bien reçu. Avez-vous pris des médicaments récemment pour soulager ces symptômes ?',
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Initial seed messages — replace with GET /conversations/:id/messages
-// ─────────────────────────────────────────────────────────────────────────────
-
-List<ChatMessage> _buildSeedMessages() {
-  final today = DateTime.now();
-
-  DateTime t(int h, int m) =>
-      DateTime(today.year, today.month, today.day, h, m);
-
-  return [
-    ChatMessage(
-      id: 'seed_0',
-      text:
-          'Bonjour ! Je suis l\'IA Nexora. Décrivez votre problème et je vais analyser votre demande pour vous aider ou vous connecter à l\'expert idéal.',
-      type: MessageType.ai,
-      createdAt: t(14, 2),
-    ),
-    ChatMessage(
-      id: 'seed_1',
-      text: 'J\'ai des douleurs thoraciques depuis ce matin.',
-      type: MessageType.user,
-      createdAt: t(14, 3),
-    ),
-    ChatMessage(
-      id: 'seed_2',
-      text:
-          'Les douleurs thoraciques peuvent avoir plusieurs origines. Sont-elles constantes ou intermittentes ? Irradient-elles vers le bras gauche ou la mâchoire ?',
-      type: MessageType.ai,
-      createdAt: t(14, 3),
-    ),
-    ChatMessage(
-      id: 'seed_3',
-      text: 'Intermittentes, et ça monte un peu vers l\'épaule gauche.',
-      type: MessageType.user,
-      createdAt: t(14, 5),
-    ),
-    ChatMessage(
-      id: 'seed_4',
-      text: 'IA Nexora vous a connecté à un expert médical',
-      type: MessageType.system,
-      createdAt: t(14, 5),
-    ),
-    ChatMessage(
-      id: 'seed_5',
-      text:
-          'Bonjour ! J\'ai pris connaissance de vos symptômes. Une irradiation vers l\'épaule gauche mérite une attention particulière. Avez-vous des antécédents cardiaques ?',
-      type: MessageType.expert,
-      createdAt: t(14, 6),
-    ),
-    ChatMessage(
-      id: 'seed_6',
-      text: 'Non, aucun antécédent. Beaucoup de stress ces derniers temps.',
-      type: MessageType.user,
-      createdAt: t(14, 7),
-    ),
-    ChatMessage(
-      id: 'seed_7',
-      text:
-          'Le stress peut effectivement provoquer des douleurs thoraciques. Je vous recommande tout de même un ECG aujourd\'hui pour écarter tout risque cardiaque. Avez-vous accès à une clinique proche ?',
-      type: MessageType.expert,
-      createdAt: t(14, 8),
-    ),
-  ];
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State
@@ -93,19 +25,27 @@ List<ChatMessage> _buildSeedMessages() {
 class ChatState {
   final List<ChatMessage> messages;
   final bool isTyping;
+  final bool isLoading;
+  final String? error;
 
   const ChatState({
     this.messages = const [],
     this.isTyping = false,
+    this.isLoading = false,
+    this.error,
   });
 
   ChatState copyWith({
     List<ChatMessage>? messages,
     bool? isTyping,
+    bool? isLoading,
+    String? error,
   }) =>
       ChatState(
         messages: messages ?? this.messages,
         isTyping: isTyping ?? this.isTyping,
+        isLoading: isLoading ?? this.isLoading,
+        error: error,
       );
 }
 
@@ -114,46 +54,151 @@ class ChatState {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ChatNotifier extends AutoDisposeNotifier<ChatState> {
+  Timer? _pollingTimer;
   bool _disposed = false;
   bool _isAi = true;
-  int? _conversationId; // set when WebSocket connects
+  int? _conversationId;
+  DateTime _lastPolled = DateTime.now();
 
   @override
   ChatState build() {
     ref.onDispose(() {
       _disposed = true;
-      _disconnectWebSocket();
+      _stopPolling();
     });
-    return const ChatState();
+    return const ChatState(messages: []);
   }
 
   // ── Called by ChatScreen on open ─────────────────────────────────────────
 
   void initialize({required bool isAi, int? conversationId}) {
     _isAi = isAi;
-    _conversationId = conversationId;
-    state = state.copyWith(messages: _buildSeedMessages());
 
-    // TODO(S17): call connectWebSocket() once conversationId is available
-    // connectWebSocket(conversationId!);
+    if (conversationId != null) {
+      _conversationId = conversationId;
+      _loadMessagesFromBackend(conversationId);
+      _startPolling();
+    } else if (isAi) {
+      // IA Nexora chat — show welcome message, no backend
+      state = state.copyWith(
+        messages: [
+          ChatMessage(
+            id: 'ai_welcome',
+            text: _kAiResponses[0],
+            type: MessageType.ai,
+            createdAt: DateTime.now(),
+          ),
+        ],
+      );
+    }
   }
 
-  // ── WebSocket lifecycle ───────────────────────────────────────────────────
+  Future<void> _loadMessagesFromBackend(int conversationId) async {
+    if (!_disposed) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
 
-  // TODO(S17): inject a WebSocket/Reverb client and subscribe to
-  //   private-conversation.{_conversationId}
-  //   Events to handle:
-  //     MessageSent        → receiveMessage(text, type)
-  //     UserTyping (whisper) → setTyping(true/false)
-  //     AIResponseReady    → receiveMessage(text, MessageType.ai)
-  void connectWebSocket(int conversationId) {
-    // TODO(S17): Echo.private('conversation.$conversationId')
-    //   .listen('MessageSent', (data) => receiveMessage(data['content'], ...))
-    //   .listenForWhisper('typing', (data) => setTyping(data['typing']))
+    try {
+      final dio = ref.read(dioProvider);
+      final response = await dio.get('/conversations/$conversationId/messages');
+      final data = response.data as Map<String, dynamic>;
+      final messagesData = data['data'] as List<dynamic>? ?? [];
+
+      final messages = messagesData.map((msg) {
+        final msgMap = msg as Map<String, dynamic>;
+        final type = msgMap['sender_type'] == 'user'
+            ? MessageType.user
+            : msgMap['sender_type'] == 'expert'
+                ? MessageType.expert
+                : MessageType.ai;
+
+        return ChatMessage(
+          id: msgMap['id']?.toString() ?? '',
+          text: msgMap['content'] as String? ?? '',
+          type: type,
+          createdAt: msgMap['created_at'] is String
+              ? DateTime.tryParse(msgMap['created_at'] as String) ??
+                  DateTime.now()
+              : DateTime.now(),
+        );
+      }).toList();
+
+      if (!_disposed) {
+        state = state.copyWith(messages: messages, isLoading: false);
+      }
+    } catch (e) {
+      if (!_disposed) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Erreur: $e',
+          messages: [],
+        );
+      }
+    }
   }
 
-  void _disconnectWebSocket() {
-    // TODO(S17): Echo.leave('conversation.$_conversationId')
+  // ── Message polling (real-time substitute) ──────────────────────────────────
+
+  void _startPolling() {
+    _stopPolling();
+    _pollingTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) async {
+        if (_disposed || _conversationId == null) return;
+        await _pollForNewMessages();
+      },
+    );
+  }
+
+  void _stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+  }
+
+  Future<void> _pollForNewMessages() async {
+    if (_conversationId == null) return;
+
+    try {
+      final dio = ref.read(dioProvider);
+      final response = await dio.get(
+        '/conversations/$_conversationId/messages?since=${_lastPolled.toIso8601String()}',
+      );
+      final data = response.data as Map<String, dynamic>;
+      final messagesData = data['data'] as List<dynamic>? ?? [];
+
+      if (messagesData.isNotEmpty) {
+        _lastPolled = DateTime.now();
+
+        for (final msg in messagesData) {
+          final msgMap = msg as Map<String, dynamic>;
+
+          final type = msgMap['type'] == 'user'
+              ? MessageType.user
+              : msgMap['type'] == 'expert'
+                  ? MessageType.expert
+                  : MessageType.ai;
+
+          final message = ChatMessage(
+            id: msgMap['id']?.toString() ?? '',
+            text: msgMap['content'] as String? ?? '',
+            type: type,
+            createdAt: msgMap['created_at'] is String
+                ? DateTime.tryParse(msgMap['created_at'] as String) ??
+                    DateTime.now()
+                : DateTime.now(),
+          );
+
+          if (!_disposed && !state.messages.any((m) => m.id == message.id)) {
+            state = state.copyWith(
+              messages: [...state.messages, message],
+              isTyping: false,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      // Polling error — retry next cycle
+    }
   }
 
   // ── Called by ChatScreen when user submits a message ─────────────────────
@@ -166,9 +211,39 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
       messages: [...state.messages, _build(trimmed, MessageType.user)],
     );
 
-    // TODO(S17): POST /api/v1/conversations/{id}/messages via HTTP, then
-    //   server broadcasts MessageSent → receiveMessage() is called by WebSocket
-    _mockResponse(); // remove when WebSocket is connected
+    if (_conversationId != null) {
+      _postMessage(trimmed);
+    } else if (_isAi) {
+      _aiMockResponse();
+    }
+  }
+
+  Future<void> _postMessage(String text) async {
+    if (_conversationId == null) return;
+
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.post(
+        '/conversations/$_conversationId/messages',
+        data: {'content': text},
+      );
+    } catch (e) {
+      // Error posting message - message already appears optimistically
+    }
+  }
+
+  Future<void> _aiMockResponse() async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (_disposed) return;
+
+    setTyping(true);
+
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (_disposed) return;
+
+    final reply = _kAiResponses[
+        (state.messages.length) % _kAiResponses.length];
+    receiveMessage(reply, MessageType.ai);
   }
 
   // ── Called by WebSocket layer when a message arrives ─────────────────────
@@ -197,23 +272,6 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
         createdAt: DateTime.now(),
       );
 
-  // ── Mock response simulation — remove when WebSocket is connected ─────────
-
-  Future<void> _mockResponse() async {
-    await Future.delayed(const Duration(milliseconds: 1400));
-    if (_disposed) return;
-
-    setTyping(true);
-
-    await Future.delayed(const Duration(milliseconds: 2000));
-    if (_disposed) return;
-
-    final pool = _isAi ? _kAiResponses : _kExpertResponses;
-    final text = pool[state.messages.length % pool.length];
-    final type = _isAi ? MessageType.ai : MessageType.expert;
-
-    receiveMessage(text, type);
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

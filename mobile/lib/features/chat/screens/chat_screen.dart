@@ -19,6 +19,7 @@ class ChatScreen extends ConsumerStatefulWidget {
   final String subtitle;
   final bool online;
   final bool isAi;
+  final int? conversationId;
 
   const ChatScreen({
     super.key,
@@ -28,6 +29,7 @@ class ChatScreen extends ConsumerStatefulWidget {
     required this.subtitle,
     required this.online,
     required this.isAi,
+    this.conversationId,
   });
 
   @override
@@ -47,7 +49,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (has != _hasText) setState(() => _hasText = has);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(chatProvider.notifier).initialize(isAi: widget.isAi);
+      ref.read(chatProvider.notifier).initialize(
+        isAi: widget.isAi,
+        conversationId: widget.conversationId,
+      );
       _scrollToBottom();
     });
   }
@@ -104,38 +109,63 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
               // Messages
               Expanded(
-                child: ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                  itemCount: chatState.messages.length +
-                      (chatState.isTyping ? 2 : 1), // +1 date, +1 typing
-                  itemBuilder: (context, i) {
-                    // Date separator first
-                    if (i == 0) return const _DateSeparator();
+                child: chatState.isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(),
+                      )
+                    : chatState.error != null
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  chatState.error!,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: () => ref.refresh(chatProvider),
+                                  child: const Text('Réessayer'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : chatState.messages.isEmpty
+                            ? const Center(
+                                child: Text('Aucun message'),
+                              )
+                            : ListView.builder(
+                                controller: _scrollController,
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                                itemCount: chatState.messages.length +
+                                    (chatState.isTyping ? 2 : 1),
+                                itemBuilder: (context, i) {
+                                  if (i == 0) return const _DateSeparator();
 
-                    final msgIndex = i - 1;
+                                  final msgIndex = i - 1;
 
-                    // Typing indicator last
-                    if (chatState.isTyping &&
-                        msgIndex == chatState.messages.length) {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: _TypingBubble(
-                          isAi: widget.isAi,
-                          initials: widget.initials,
-                          color: widget.color,
-                        ),
-                      );
-                    }
+                                  if (chatState.isTyping &&
+                                      msgIndex == chatState.messages.length) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: _TypingBubble(
+                                        isAi: widget.isAi,
+                                        initials: widget.initials,
+                                        color: widget.color,
+                                      ),
+                                    );
+                                  }
 
-                    final msg = chatState.messages[msgIndex];
-                    return _MessageBubble(
-                      message: msg,
-                      expertInitials: widget.initials,
-                      expertColor: widget.color,
-                    );
-                  },
-                ),
+                                  final msg = chatState.messages[msgIndex];
+                                  return _MessageBubble(
+                                    message: msg,
+                                    expertInitials: widget.initials,
+                                    expertColor: widget.color,
+                                  );
+                                },
+                              ),
               ),
 
               // Input bar
