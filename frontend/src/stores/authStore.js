@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import api from '../lib/api';
 import { disconnectEcho } from '../lib/echo';
 
-const useAuthStore = create((set, get) => ({
+const useAuthStore = create((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
@@ -39,7 +39,7 @@ const useAuthStore = create((set, get) => ({
       localStorage.setItem('access_token', data.data.token.access_token);
       localStorage.setItem('refresh_token', data.data.token.refresh_token);
       set({ user: data.data.user, isAuthenticated: true });
-      return { success: true };
+      return { success: true, user: data.data.user };
     } catch (err) {
       const message = err.response?.data?.message || 'Erreur de connexion.';
       set({ error: message });
@@ -51,15 +51,35 @@ const useAuthStore = create((set, get) => ({
   verify2fa: async (twoFactorToken, code) => {
     set({ error: null });
     try {
-      const { data } = await api.post('/auth/2fa/verify', { code }, {
-        headers: { Authorization: `Bearer ${twoFactorToken}` },
+      const { data } = await api.post('/auth/2fa/verify', {
+        two_factor_token: twoFactorToken,
+        code,
       });
       localStorage.setItem('access_token', data.data.token.access_token);
       localStorage.setItem('refresh_token', data.data.token.refresh_token);
       set({ user: data.data.user, isAuthenticated: true });
-      return { success: true };
+      return { success: true, user: data.data.user };
     } catch (err) {
       const message = err.response?.data?.message || 'Code invalide.';
+      set({ error: message });
+      return { success: false, error: message };
+    }
+  },
+
+  completeAuth: async (accessToken, refreshToken) => {
+    set({ error: null });
+    localStorage.setItem('access_token', accessToken);
+    localStorage.setItem('refresh_token', refreshToken);
+
+    try {
+      const { data } = await api.get('/auth/me');
+      set({ user: data.data, isAuthenticated: true });
+      return { success: true, user: data.data };
+    } catch (err) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      set({ user: null, isAuthenticated: false });
+      const message = err.response?.data?.message || 'Connexion sociale impossible.';
       set({ error: message });
       return { success: false, error: message };
     }

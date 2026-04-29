@@ -13,6 +13,7 @@ class RegisterRequest extends FormRequest
             'email'    => ['required', 'email', 'max:180', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'language' => ['sometimes', 'string', 'in:fr,ar'],
+            'phone'    => ['sometimes', 'nullable', 'string', 'max:20', 'unique:users,phone'],
         ];
     }
 }

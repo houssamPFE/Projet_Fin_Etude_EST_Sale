@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\UserResource;
 use App\Services\AuthService;
 use App\Services\TwoFactorService;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Laravel\Socialite\Facades\Socialite;
 
 class GoogleCallbackController extends Controller
@@ -17,42 +16,36 @@ class GoogleCallbackController extends Controller
     ) {}
 
     /**
-     * Handle the Google OAuth callback.
-     * Exchange the authorization code for user info, create/link account.
+     * Handle the Google OAuth callback and redirect back to the SPA.
      *
      * GET /api/v1/auth/google/callback
      */
-    public function __invoke(): JsonResponse
+    public function __invoke(): RedirectResponse
     {
         try {
             $socialUser = Socialite::driver('google')->stateless()->user();
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erreur d\'authentification Google.',
-            ], 401);
+        } catch (\Throwable) {
+            return $this->redirectToFrontend([
+                'error' => 'Erreur d\'authentification Google.',
+            ]);
         }
 
         $result = $this->authService->handleSocialLogin('google', $socialUser);
 
-        // Check if 2FA is enabled
         if ($this->twoFactorService->isEnabled($result['user'])) {
             $twoFactorToken = $this->authService->createTwoFactorToken($result['user']);
-            // Revoke the full tokens that were just created
             $result['user']->tokens()->where('name', '!=', '2fa_token')->delete();
 
-            return response()->json([
-                'message'          => 'Vérification 2FA requise.',
-                'requires_2fa'     => true,
+            return $this->redirectToFrontend([
+                'requires_2fa'     => '1',
                 'two_factor_token' => $twoFactorToken,
             ]);
         }
 
-        return response()->json([
-            'message' => 'Connexion Google réussie.',
-            'data'    => [
-                'user'  => new UserResource($result['user']),
-                'token' => $result['tokens'],
-            ],
+        return $this->redirectToFrontend([
+            'access_token'  => $result['tokens']['access_token'],
+            'refresh_token' => $result['tokens']['refresh_token'],
+            'provider'      => 'google',
         ])->withCookie(
             cookie(
                 name: 'refresh_token',
@@ -63,5 +56,13 @@ class GoogleCallbackController extends Controller
                 sameSite: 'Strict'
             )
         );
+    }
+
+    private function redirectToFrontend(array $payload): RedirectResponse
+    {
+        $base = rtrim(config('app.frontend_url'), '/').'/auth/social/callback';
+        $fragment = http_build_query($payload);
+
+        return redirect()->away($base.($fragment ? '#'.$fragment : ''));
     }
 }

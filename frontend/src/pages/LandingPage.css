@@ -1,0 +1,35 @@
+/* ================================================================
+   LANDING PAGE — Override global element selectors so Tailwind
+   classes work correctly inside the landing page
+   ================================================================ */
+
+/* Reset heading font to inherit (global CSS sets Sora on h1/h2) */
+.landing-page h1,
+.landing-page h2,
+.landing-page h3,
+.landing-page h4,
+.landing-page h5,
+.landing-page h6 {
+  font-family: inherit;
+}
+
+/* Reset link color to inherit (global CSS sets blue on all links) */
+.landing-page a {
+  color: inherit;
+  text-decoration: none;
+}
+.landing-page a:hover {
+  color: inherit;
+}
+
+/* Reset list style */
+.landing-page ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Ensure body line-height doesn't mess with Tailwind's leading-* utilities */
+.landing-page {
+  line-height: normal;
+}

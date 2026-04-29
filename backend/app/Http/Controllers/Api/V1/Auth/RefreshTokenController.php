@@ -15,7 +15,7 @@ class RefreshTokenController extends Controller
 
     public function __invoke(Request $request): JsonResponse
     {
-        $rawToken = $request->cookie('refresh_token');
+        $rawToken = $request->cookie('refresh_token') ?: $request->input('refresh_token');
 
         if (! $rawToken) {
             return response()->json(['message' => 'Refresh token manquant.'], 401);

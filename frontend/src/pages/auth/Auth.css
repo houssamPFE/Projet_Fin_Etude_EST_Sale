@@ -28,11 +28,23 @@
   gap: var(--space-md);
 }
 
+/* Submit button: narrower than full width, centered */
+.auth-form .btn-primary {
+  max-width: 280px;
+  margin: 4px auto 0;
+}
+
 /* Input with icon */
 .input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
+}
+.input-wrapper > .form-input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
 }
 
 .input-icon {

@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('phone', 20)->unique()->nullable();
             $table->string('password');
             $table->string('role', 10)->default('user');
-            $table->string('avatar_url')->nullable();
+            $table->string('avatar_url', 500)->nullable();
             $table->string('language', 5)->default('fr');
             $table->timestamp('email_verified_at')->nullable();
             $table->boolean('is_active')->default(true);

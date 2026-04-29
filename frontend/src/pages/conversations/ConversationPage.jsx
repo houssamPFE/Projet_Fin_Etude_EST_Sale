@@ -162,7 +162,9 @@ export default function ConversationPage() {
     const text = input.trim();
     if (!text || sending) return;
     setInput('');
-    setAiTyping(true);
+    if (conv?.status !== 'expert' && conv?.status !== 'closed') {
+      setAiTyping(true);
+    }
     try {
       await sendMessage(text);
     } catch {
@@ -186,7 +188,9 @@ export default function ConversationPage() {
   const handleSendAudio = async () => {
     if (!recorder.blob || sendingAudio) return;
     try {
-      setAiTyping(true);
+      if (conv?.status !== 'expert' && conv?.status !== 'closed') {
+        setAiTyping(true);
+      }
       await sendAudio(recorder.blob);
       recorder.reset();
     } catch {
@@ -196,7 +200,7 @@ export default function ConversationPage() {
   };
 
   const messages = messagesData?.data ?? [];
-  const conv = conversation?.data ?? null;
+  const conv = conversation ?? null;
   const hasEmergency = messages.some(
     (m) => m.metadata?.urgency_level === 'emergency'
   );
@@ -235,13 +239,14 @@ export default function ConversationPage() {
         </div>
       )}
 
-      <div className="conv-disclaimer">
-        Les informations fournies par l'IA sont à titre informatif uniquement et
-        ne remplacent pas une consultation médicale. En cas d'urgence, appelez le 141.
-      </div>
-
       {/* Messages */}
       <div className="conv-messages">
+        <div className="conv-disclaimer">
+          <Bot size={14} />
+          Les informations fournies par l'IA sont à titre informatif uniquement et
+          ne remplacent pas une consultation médicale. En cas d'urgence, appelez le 141.
+        </div>
+
         {messagesLoading ? (
           <div className="conv-messages-loading">
             <Loader2 size={28} className="spin" style={{ color: 'var(--primary-500)' }} />
@@ -282,7 +287,9 @@ export default function ConversationPage() {
         </div>
       ) : recorder.blob ? (
         <div className="conv-input-bar conv-input-bar--preview">
-          <audio controls src={URL.createObjectURL(recorder.blob)} className="rec-preview" />
+          <div className="rec-preview-wrapper msg-bubble msg-bubble--own">
+            <AudioMessage src={URL.createObjectURL(recorder.blob)} variant="own" />
+          </div>
           <button className="conv-icon-btn conv-icon-btn--danger" onClick={recorder.reset} title="Annuler">
             <X size={18} />
           </button>
