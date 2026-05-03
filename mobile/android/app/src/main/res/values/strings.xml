@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nexora</string>
+    <!-- Facebook SDK — replace with real values from Meta Developer Portal -->
+    <string name="facebook_app_id">935071629308636</string>
+    <string name="fb_login_protocol_scheme">fb935071629308636</string>
+    <string name="facebook_client_token">bcf94d93a99cc281be88dd83e270e446</string>
+</resources>

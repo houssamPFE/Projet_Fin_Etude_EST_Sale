@@ -61,6 +61,7 @@ use App\Http\Controllers\Api\V1\Payment\PaymentConfirmController;
 use App\Http\Controllers\Api\V1\Payment\PaymentHistoryController;
 use App\Http\Controllers\Api\V1\Payment\PaymentIntentController;
 use App\Http\Controllers\Api\V1\Payment\StripeWebhookController;
+use App\Http\Controllers\Api\V1\User\ChangePasswordController;
 use App\Http\Controllers\Api\V1\User\DeleteAccountController;
 use App\Http\Controllers\Api\V1\User\UserAvatarController;
 use App\Http\Controllers\Api\V1\User\UserProfileController;
@@ -119,6 +120,7 @@ Route::prefix('v1')->group(function () {
         Route::get('profile', [UserProfileController::class, 'show']);
         Route::put('profile', [UserProfileController::class, 'update']);
         Route::post('avatar', UserAvatarController::class);
+        Route::put('password', ChangePasswordController::class);
         Route::delete('account', DeleteAccountController::class);
     });
 

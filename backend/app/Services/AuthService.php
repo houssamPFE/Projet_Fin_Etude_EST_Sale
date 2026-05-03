@@ -54,7 +54,7 @@ class AuthService
         $refreshToken = $user->createToken(
             'refresh_token',
             ['refresh'],
-            now()->addDays(30)
+            now()->addDays(1)
         );
 
         return [
