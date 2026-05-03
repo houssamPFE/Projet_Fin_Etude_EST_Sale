@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -24,16 +24,16 @@ void main() async {
   runApp(const ProviderScope(child: NexoraApp()));
 }
 
-class NexoraApp extends StatelessWidget {
+class NexoraApp extends ConsumerWidget {
   const NexoraApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
       title: 'Nexora',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
-      routerConfig: appRouter,
+      routerConfig: ref.watch(routerProvider),
     );
   }
 }

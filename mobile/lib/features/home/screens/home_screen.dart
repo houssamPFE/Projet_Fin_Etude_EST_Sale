@@ -1,7 +1,10 @@
+import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/network/dio_client.dart' show fixStorageUrl;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_gradients.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -251,13 +254,12 @@ class _HomeHeader extends ConsumerWidget {
       data: (u) => u.name.trim().split(RegExp(r'\s+')).first,
       orElse: () => '...',
     );
-    final initial = userAsync.maybeWhen(
-      data: (u) {
-        final n = u.name.trim();
-        return n.isEmpty ? '?' : n.substring(0, 1).toUpperCase();
-      },
-      orElse: () => '·',
-    );
+    final user = userAsync.valueOrNull;
+    final initial = user != null
+        ? (user.name.trim().isEmpty ? '?' : user.name.trim().substring(0, 1).toUpperCase())
+        : '·';
+    final localPath = ref.watch(localAvatarPathProvider);
+    final avatarUrl = user?.avatarUrl;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -288,15 +290,41 @@ class _HomeHeader extends ConsumerWidget {
               shape: BoxShape.circle,
               gradient: AppGradients.primary,
             ),
-            child: Center(
-              child: Text(
-                initial,
-                style: AppTextStyles.titleMedium.copyWith(color: Colors.white),
-              ),
+            child: ClipOval(
+              child: _buildAvatarChild(localPath, avatarUrl, initial),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAvatarChild(String? localPath, String? avatarUrl, String initial) {
+    if (localPath != null) {
+      return Image.file(File(localPath), fit: BoxFit.cover, width: 42, height: 42);
+    }
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: fixStorageUrl(avatarUrl),
+        fit: BoxFit.cover,
+        width: 42,
+        height: 42,
+        placeholder: (ctx, url) => _initialsWidget(initial),
+        errorWidget: (ctx, url, err) => _initialsWidget(initial),
+      );
+    }
+    return _initialsWidget(initial);
+  }
+
+  Widget _initialsWidget(String initial) {
+    return Container(
+      width: 42,
+      height: 42,
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: AppTextStyles.titleMedium.copyWith(color: Colors.white),
+      ),
     );
   }
 }

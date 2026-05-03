@@ -12,6 +12,8 @@ class GlassTextField extends StatefulWidget {
   final TextInputAction textInputAction;
   final TextCapitalization textCapitalization;
   final bool autocorrect;
+  final bool obscureText;
+  final int? maxLength;
   final String? Function(String?)? validator;
 
   const GlassTextField({
@@ -20,10 +22,12 @@ class GlassTextField extends StatefulWidget {
     required this.label,
     required this.hint,
     required this.prefixIcon,
-    required this.keyboardType,
+    this.keyboardType = TextInputType.text,
     required this.textInputAction,
     this.textCapitalization = TextCapitalization.none,
     this.autocorrect = false,
+    this.obscureText = false,
+    this.maxLength,
     this.validator,
   });
 
@@ -73,6 +77,8 @@ class _GlassTextFieldState extends State<GlassTextField> {
         textInputAction: widget.textInputAction,
         textCapitalization: widget.textCapitalization,
         autocorrect: widget.autocorrect,
+        obscureText: widget.obscureText,
+        maxLength: widget.maxLength,
         style: AppTextStyles.input,
         validator: widget.validator,
         decoration: InputDecoration(

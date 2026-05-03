@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 
-/// Styled back button used on auth screens.
+/// Styled back button used on auth screens and sub-pages.
 class NexoraBackButton extends StatelessWidget {
   final VoidCallback? onTap;
 
@@ -17,7 +18,12 @@ class NexoraBackButton extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: onTap ?? () => Navigator.maybePop(context),
+              onTap: onTap ??
+                  () {
+                    if (context.canPop()) {
+                      context.pop();
+                    }
+                  },
               child: Container(
                 width: 40,
                 height: 40,

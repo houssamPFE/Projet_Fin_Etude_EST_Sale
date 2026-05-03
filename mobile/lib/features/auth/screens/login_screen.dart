@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../models/auth_response.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -28,13 +29,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _onSocialLogin(String provider) async {
+    final notifier = ref.read(authProvider.notifier);
+    final result = provider == 'google'
+        ? await notifier.loginWithGoogle()
+        : await notifier.loginWithFacebook();
+    if (!mounted || result == null) return;
+    switch (result) {
+      case LoginSuccess():
+        context.go(AppRoutes.home);
+      case LoginNeeds2FA(:final twoFactorToken):
+        context.push(AppRoutes.twoFactor, extra: twoFactorToken);
+      case LoginNeedsVerification():
+        break;
+    }
+  }
+
   Future<void> _onLogin() async {
     if (!_formKey.currentState!.validate()) return;
-    final ok = await ref.read(authProvider.notifier).login(
+    final result = await ref.read(authProvider.notifier).login(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
-    if (ok && mounted) context.go(AppRoutes.home);
+    if (!mounted || result == null) return;
+
+    switch (result) {
+      case LoginSuccess():
+        context.go(AppRoutes.home);
+      case LoginNeeds2FA(:final twoFactorToken):
+        context.push(AppRoutes.twoFactor, extra: twoFactorToken);
+      case LoginNeedsVerification():
+        context.push(AppRoutes.otp,
+            extra: {'email': _emailController.text.trim()});
+    }
   }
 
   @override
@@ -131,9 +158,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () {
-                                // TODO: navigate to ForgotPasswordScreen
-                              },
+                              onPressed: () => context.push(AppRoutes.forgotPassword),
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 4,
@@ -187,9 +212,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           SocialAuthButton(
                             brand: SocialBrand.google,
                             label: 'Continuer avec Google',
-                            onTap: () {
-                              // TODO: Google OAuth
-                            },
+                            onTap: () => _onSocialLogin('google'),
                           )
                               .animate()
                               .fadeIn(delay: 620.ms)
@@ -200,9 +223,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           SocialAuthButton(
                             brand: SocialBrand.facebook,
                             label: 'Continuer avec Facebook',
-                            onTap: () {
-                              // TODO: Facebook OAuth
-                            },
+                            onTap: () => _onSocialLogin('facebook'),
                           )
                               .animate()
                               .fadeIn(delay: 690.ms)

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Search, Star, Clock, Filter, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useExperts, useCategories } from '../../hooks/useExperts';

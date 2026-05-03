@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../models/auth_response.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -33,20 +34,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
+  Future<void> _onSocialLogin(String provider) async {
+    final notifier = ref.read(authProvider.notifier);
+    final result = provider == 'google'
+        ? await notifier.loginWithGoogle()
+        : await notifier.loginWithFacebook();
+    if (!mounted || result == null) return;
+    switch (result) {
+      case LoginSuccess():
+        context.go(AppRoutes.home);
+      case LoginNeeds2FA(:final twoFactorToken):
+        context.push(AppRoutes.twoFactor, extra: twoFactorToken);
+      case LoginNeedsVerification():
+        break;
+    }
+  }
+
   Future<void> _onRegister() async {
     if (!_formKey.currentState!.validate()) return;
-    final ok = await ref.read(authProvider.notifier).register(
+    final email = await ref.read(authProvider.notifier).register(
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
-    if (!mounted || !ok) return;
-    final msg = ref.read(authProvider).infoMessage ??
-        'Compte créé. Vérifiez votre email pour confirmer votre inscription.';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
-    context.go(AppRoutes.login);
+    if (!mounted || email == null) return;
+    context.pushReplacement(AppRoutes.otp, extra: {'email': email});
   }
 
   @override
@@ -231,9 +243,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           SocialAuthButton(
                             brand: SocialBrand.google,
                             label: 'Continuer avec Google',
-                            onTap: () {
-                              // TODO: Google OAuth
-                            },
+                            onTap: () => _onSocialLogin('google'),
                           )
                               .animate()
                               .fadeIn(delay: 680.ms)
@@ -244,9 +254,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           SocialAuthButton(
                             brand: SocialBrand.facebook,
                             label: 'Continuer avec Facebook',
-                            onTap: () {
-                              // TODO: Facebook OAuth
-                            },
+                            onTap: () => _onSocialLogin('facebook'),
                           )
                               .animate()
                               .fadeIn(delay: 740.ms)

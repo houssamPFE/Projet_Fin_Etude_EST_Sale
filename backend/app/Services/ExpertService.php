@@ -110,6 +110,8 @@ class ExpertService
             'validated_by' => $admin->id,
         ]);
 
+        $expert->user->update(['role' => 'expert']);
+
         $this->notificationService->expertValidated($expert->user);
 
         return $expert->fresh(['category', 'documents', 'user']);
