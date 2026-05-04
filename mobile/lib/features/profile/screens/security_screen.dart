@@ -267,8 +267,9 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
   }
 
   Future<void> _disableConfirm() async {
-    if (_disablePassController.text.isEmpty) {
-      setState(() => _disableError = 'Entrez votre mot de passe.');
+    final code = _disablePassController.text.trim();
+    if (code.length != 6) {
+      setState(() => _disableError = 'Entrez le code à 6 chiffres de votre authenticateur.');
       return;
     }
     setState(() {
@@ -277,7 +278,7 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
     });
     try {
       final dio = ref.read(dioProvider);
-      await dio.post('/auth/2fa/disable', data: {'password': _disablePassController.text});
+      await dio.post('/auth/2fa/disable', data: {'code': code});
       setState(() {
         _showDisable = false;
         _disablePassController.clear();
@@ -513,23 +514,24 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
               ),
             ),
           ],
-          // ── Disable flow: password ────────────────────────────────────────
+          // ── Disable flow: TOTP code ───────────────────────────────────────
           if (_showDisable) ...[
             const SizedBox(height: 20),
             Container(height: 1, color: AppColors.divider),
             const SizedBox(height: 20),
             Text(
-              'Entrez votre mot de passe pour désactiver la 2FA.',
+              'Entrez le code affiché sur votre authenticateur pour désactiver la 2FA.',
               style: AppTextStyles.bodySmall
                   .copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 14),
             GlassTextField(
               controller: _disablePassController,
-              label: 'Mot de passe',
-              hint: '••••••••',
-              prefixIcon: Icons.lock_outline_rounded,
-              obscureText: true,
+              label: 'Code authenticateur',
+              hint: '123456',
+              prefixIcon: Icons.pin_outlined,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
               textInputAction: TextInputAction.done,
             ),
             if (_disableError != null) ...[

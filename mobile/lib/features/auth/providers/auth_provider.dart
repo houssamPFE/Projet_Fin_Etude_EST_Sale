@@ -194,7 +194,10 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
   Future<LoginResult?> loginWithGoogle() async {
     state = const AuthState(isLoading: true);
     try {
-      final googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+      final googleSignIn = GoogleSignIn(
+        serverClientId: '838155054639-cn48046dqe7hq02svq3etae8eeqdh26f.apps.googleusercontent.com',
+        scopes: ['email', 'profile'],
+        );
       await googleSignIn.signOut(); // force account picker every time
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {

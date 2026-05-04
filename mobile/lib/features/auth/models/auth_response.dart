@@ -10,6 +10,7 @@ class AuthUser {
   final String? avatarUrl;
   final DateTime? createdAt;
   final bool twoFactorEnabled;
+  final String language;
 
   const AuthUser({
     required this.id,
@@ -19,6 +20,7 @@ class AuthUser {
     this.avatarUrl,
     this.createdAt,
     this.twoFactorEnabled = false,
+    this.language = 'fr',
   });
 
   factory AuthUser.fromJson(Map<String, dynamic> json) => AuthUser(
@@ -31,6 +33,7 @@ class AuthUser {
             ? DateTime.tryParse(json['created_at'] as String)
             : null,
         twoFactorEnabled: json['two_factor_enabled'] as bool? ?? false,
+        language: json['language'] as String? ?? 'fr',
       );
 
   String get firstName {

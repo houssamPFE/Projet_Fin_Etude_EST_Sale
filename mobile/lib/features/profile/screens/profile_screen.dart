@@ -38,6 +38,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _phoneController = TextEditingController();
   bool _notifPush = true;
   bool _notifEmail = false;
+  String _language = 'fr';
   bool _controllersHydrated = false;
   String? _saveError;
 
@@ -52,6 +53,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (_controllersHydrated) return;
     _nameController.text = user.name;
     _phoneController.text = user.phone ?? '';
+    _language = user.language;
     _controllersHydrated = true;
   }
 
@@ -206,6 +208,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     Future.delayed(const Duration(seconds: 3), entry.remove);
   }
 
+  Future<void> _onLanguageTap() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _LanguagePicker(current: _language),
+    );
+    if (picked == null || picked == _language || !mounted) return;
+    final previous = _language;
+    setState(() => _language = picked);
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.put('/users/profile', data: {'language': picked});
+      ref.invalidate(currentUserProvider);
+      _controllersHydrated = false;
+      _showToast('Langue mise à jour', success: true);
+    } catch (_) {
+      setState(() => _language = previous);
+      _showToast('Impossible de changer la langue', success: false);
+    }
+  }
+
   void _onLogout() {
     showDialog(
       context: context,
@@ -252,11 +278,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   phoneController: _phoneController,
                   notifPush: _notifPush,
                   notifEmail: _notifEmail,
+                  language: _language,
                   saveError: _saveError,
                   onToggleEdit: _toggleEdit,
                   onAvatarTap: _isEditing ? _onAvatarTap : null,
                   onPushChanged: (v) => setState(() => _notifPush = v),
                   onEmailChanged: (v) => setState(() => _notifEmail = v),
+                  onLanguageTap: _onLanguageTap,
                   onLogout: _onLogout,
                 );
               },
@@ -282,11 +310,13 @@ class _ProfileContent extends StatelessWidget {
   final TextEditingController phoneController;
   final bool notifPush;
   final bool notifEmail;
+  final String language;
   final String? saveError;
   final VoidCallback onToggleEdit;
   final VoidCallback? onAvatarTap;
   final ValueChanged<bool> onPushChanged;
   final ValueChanged<bool> onEmailChanged;
+  final VoidCallback onLanguageTap;
   final VoidCallback onLogout;
 
   const _ProfileContent({
@@ -299,11 +329,13 @@ class _ProfileContent extends StatelessWidget {
     required this.phoneController,
     required this.notifPush,
     required this.notifEmail,
+    required this.language,
     required this.saveError,
     required this.onToggleEdit,
     required this.onAvatarTap,
     required this.onPushChanged,
     required this.onEmailChanged,
+    required this.onLanguageTap,
     required this.onLogout,
   });
 
@@ -377,8 +409,10 @@ class _ProfileContent extends StatelessWidget {
                 _SettingsCard(
                   notifPush: notifPush,
                   notifEmail: notifEmail,
+                  language: language,
                   onPushChanged: onPushChanged,
                   onEmailChanged: onEmailChanged,
+                  onLanguageTap: onLanguageTap,
                 )
                     .animate()
                     .fadeIn(delay: 270.ms, duration: 500.ms)
@@ -937,14 +971,18 @@ class _SectionLabel extends StatelessWidget {
 class _SettingsCard extends StatelessWidget {
   final bool notifPush;
   final bool notifEmail;
+  final String language;
   final ValueChanged<bool> onPushChanged;
   final ValueChanged<bool> onEmailChanged;
+  final VoidCallback onLanguageTap;
 
   const _SettingsCard({
     required this.notifPush,
     required this.notifEmail,
+    required this.language,
     required this.onPushChanged,
     required this.onEmailChanged,
+    required this.onLanguageTap,
   });
 
   @override
@@ -975,11 +1013,12 @@ class _SettingsCard extends StatelessWidget {
             icon: Icons.language_rounded,
             label: 'Langue',
             isLast: true,
+            onTap: onLanguageTap,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Français',
+                  language == 'ar' ? 'العربية' : 'Français',
                   style: AppTextStyles.labelMedium
                       .copyWith(color: AppColors.textSecondary),
                 ),
@@ -1102,6 +1141,28 @@ class _NavRow extends StatelessWidget {
 class _AccountCard extends StatelessWidget {
   const _AccountCard();
 
+  void _showHelp(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const _HelpSheet(),
+    );
+  }
+
+  void _showAbout(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const _AboutSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1118,15 +1179,17 @@ class _AccountCard extends StatelessWidget {
             onTap: () => context.push(AppRoutes.security),
           ),
           Container(height: 1, color: AppColors.divider),
-          const _NavRow(
+          _NavRow(
             icon: Icons.help_outline_rounded,
             label: 'Aide & Support',
+            onTap: () => _showHelp(context),
           ),
           Container(height: 1, color: AppColors.divider),
-          const _NavRow(
+          _NavRow(
             icon: Icons.info_outline_rounded,
             label: 'À propos de Nexora',
             isLast: true,
+            onTap: () => _showAbout(context),
           ),
         ],
       ),
@@ -1461,6 +1524,220 @@ class _ErrorState extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Language picker bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LanguagePicker extends StatelessWidget {
+  final String current;
+  const _LanguagePicker({required this.current});
+
+  static const _langs = [
+    ('fr', 'Français', 'French'),
+    ('ar', 'العربية', 'Arabic'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 12),
+        Container(
+          width: 36,
+          height: 4,
+          decoration: BoxDecoration(
+            color: AppColors.border,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text('Langue', style: AppTextStyles.titleMedium),
+        ),
+        const SizedBox(height: 8),
+        for (final (code, label, sublabel) in _langs) ...[
+          InkWell(
+            onTap: () => Navigator.pop(context, code),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(label, style: AppTextStyles.titleSmall),
+                        const SizedBox(height: 2),
+                        Text(sublabel,
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.textTertiary)),
+                      ],
+                    ),
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: current == code
+                            ? AppColors.primary
+                            : AppColors.border,
+                        width: current == code ? 6 : 2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Container(height: 1, color: AppColors.divider),
+        ],
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Help bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _HelpSheet extends StatelessWidget {
+  const _HelpSheet();
+
+  static const _items = [
+    (Icons.chat_bubble_outline_rounded, 'Signaler un problème'),
+    (Icons.shield_outlined, 'Confidentialité & sécurité'),
+    (Icons.receipt_long_outlined, 'Conditions d\'utilisation'),
+    (Icons.email_outlined, 'Nous contacter'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 12),
+        Container(
+          width: 36,
+          height: 4,
+          decoration: BoxDecoration(
+            color: AppColors.border,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text('Aide & Support', style: AppTextStyles.titleMedium),
+        ),
+        const SizedBox(height: 8),
+        for (final (icon, label) in _items) ...[
+          InkWell(
+            onTap: () {},
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              child: Row(
+                children: [
+                  Icon(icon, size: 20, color: AppColors.textSecondary),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(label, style: AppTextStyles.titleSmall),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      size: 18, color: AppColors.textTertiary),
+                ],
+              ),
+            ),
+          ),
+          Container(height: 1, color: AppColors.divider),
+        ],
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// About bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AboutSheet extends StatelessWidget {
+  const _AboutSheet();
+
+  static const _links = [
+    (Icons.description_outlined, 'Conditions d\'utilisation'),
+    (Icons.privacy_tip_outlined, 'Politique de confidentialité'),
+    (Icons.cookie_outlined, 'Politique des cookies'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 12),
+        Container(
+          width: 36,
+          height: 4,
+          decoration: BoxDecoration(
+            color: AppColors.border,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 28),
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: AppGradients.button,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 28),
+        ),
+        const SizedBox(height: 12),
+        Text('Nexora', style: AppTextStyles.headlineSmall),
+        const SizedBox(height: 4),
+        Text(
+          'Version 1.0.0',
+          style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary),
+        ),
+        const SizedBox(height: 28),
+        for (final (icon, label) in _links) ...[
+          InkWell(
+            onTap: () {},
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              child: Row(
+                children: [
+                  Icon(icon, size: 20, color: AppColors.textSecondary),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(label, style: AppTextStyles.titleSmall),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      size: 18, color: AppColors.textTertiary),
+                ],
+              ),
+            ),
+          ),
+          Container(height: 1, color: AppColors.divider),
+        ],
+        const SizedBox(height: 20),
+        Text(
+          '© 2026 Nexora. Tous droits réservés.',
+          style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary),
+        ),
+        const SizedBox(height: 32),
+      ],
     );
   }
 }
