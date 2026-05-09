@@ -1,89 +1,209 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Nexora N icon — custom painter
+// Raw N icon — Image Asset
 // ─────────────────────────────────────────────────────────────────────────────
 
-class NexoraIconPainter extends CustomPainter {
-  const NexoraIconPainter();
-
-  static const _gradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF00C6FF), Color(0xFF6366F1), Color(0xFF8B5CF6)],
-    stops: [0.0, 0.5, 1.0],
-  );
+class NexoraImageIcon extends StatelessWidget {
+  final double size;
+  const NexoraImageIcon({super.key, required this.size});
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final sw = w * 0.22;
-    final shader = _gradient.createShader(Rect.fromLTWH(0, 0, w, h));
-    final paint = Paint()
-      ..shader = shader
-      ..style = PaintingStyle.fill;
-
-    // Left vertical bar
-    canvas.drawPath(
-      Path()
-        ..moveTo(0, 0)
-        ..lineTo(sw, 0)
-        ..lineTo(sw, h)
-        ..lineTo(0, h)
-        ..close(),
-      paint,
+  Widget build(BuildContext context) {
+    // Luminance → alpha matrix: preserves original colors, makes dark pixels transparent
+    return ColorFiltered(
+      colorFilter: const ColorFilter.matrix([
+        1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0.2126, 0.7152, 0.0722, 0, 0,
+      ]),
+      child: Image.asset(
+        'assets/images/logo.png',
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+      ),
     );
-
-    // Diagonal bar
-    final dw = sw * 0.88;
-    canvas.drawPath(
-      Path()
-        ..moveTo(sw * 0.55, 0)
-        ..lineTo(sw * 0.55 + dw, 0)
-        ..lineTo(w - sw * 0.55, h)
-        ..lineTo(w - sw * 0.55 - dw, h)
-        ..close(),
-      paint,
-    );
-
-    // Right bar with distinctive wave hook
-    canvas.drawPath(
-      Path()
-        ..moveTo(w - sw, 0)
-        ..lineTo(w, 0)
-        ..lineTo(w, h * 0.40)
-        ..cubicTo(w, h * 0.72, w * 0.72, h, w * 0.58, h)
-        ..lineTo(w * 0.46, h)
-        ..cubicTo(w * 0.62, h * 0.94, w - sw, h * 0.70, w - sw, h * 0.40)
-        ..lineTo(w - sw, 0)
-        ..close(),
-      paint,
-    );
-
-    // White glowing dot at top
-    final dotX = w * 0.495;
-    final dotY = sw * 0.38;
-    final dotR = sw * 0.21;
-    canvas.drawCircle(
-      Offset(dotX, dotY),
-      dotR * 2.4,
-      Paint()
-        ..color = const Color(0x40FFFFFF)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-    );
-    canvas.drawCircle(Offset(dotX, dotY), dotR, Paint()..color = Colors.white);
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Compact logo — N icon + NEXORA wordmark + tagline
-// Used on Login and Register screens
+// HERO LOGO — Welcome screen centrepiece
+// Large icon + multi-ring breathing glow + NEXORA wordmark + tagline
+// ─────────────────────────────────────────────────────────────────────────────
+
+class NexoraHeroLogo extends StatelessWidget {
+  const NexoraHeroLogo({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ── Icon + glow stack ──────────────────────────────────────────────
+        SizedBox(
+          width: 230,
+          height: 230,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Outermost slow-pulsing halo
+              Container(
+                width: 230,
+                height: 230,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      Color(0x358B5CF6),
+                      Color(0x156366F1),
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, 0.55, 1.0],
+                  ),
+                ),
+              )
+                  .animate(onPlay: (c) => c.repeat(reverse: true))
+                  .scale(
+                    begin: const Offset(0.86, 0.86),
+                    end: const Offset(1.14, 1.14),
+                    duration: 3000.ms,
+                    curve: Curves.easeInOut,
+                  )
+                  .fade(begin: 0.45, end: 1.0, duration: 3000.ms),
+
+              // Mid pulsing ring (slightly faster phase)
+              Container(
+                width: 168,
+                height: 168,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      Color(0x556366F1),
+                      Color(0x206366F1),
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, 0.6, 1.0],
+                  ),
+                ),
+              )
+                  .animate(onPlay: (c) => c.repeat(reverse: true))
+                  .scale(
+                    begin: const Offset(0.91, 0.91),
+                    end: const Offset(1.09, 1.09),
+                    duration: 2100.ms,
+                    curve: Curves.easeInOut,
+                  ),
+
+              // Inner hard glow — gives the "core light" effect
+              Container(
+                width: 116,
+                height: 116,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF6366F1).withAlpha(100),
+                      blurRadius: 36,
+                      spreadRadius: 8,
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF8B5CF6).withAlpha(60),
+                      blurRadius: 60,
+                      spreadRadius: 20,
+                    ),
+                  ],
+                ),
+              ),
+
+              // Logo icon
+              const NexoraImageIcon(size: 100),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 28),
+
+        // ── NEXORA wordmark ────────────────────────────────────────────────
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              Color(0xFFFFFFFF),
+              Color(0xFFCDD0FF),
+              Color(0xFF818CF8),
+              Color(0xFFFFFFFF),
+            ],
+            stops: [0.0, 0.35, 0.65, 1.0],
+          ).createShader(bounds),
+          blendMode: BlendMode.srcIn,
+          child: const Text(
+            'N E X O R A',
+            style: TextStyle(
+              fontSize: 34,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 10,
+              color: Colors.white,
+              height: 1.0,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // ── Tagline with decorative lines ──────────────────────────────────
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _LineDivider(toRight: false),
+            const SizedBox(width: 12),
+            Text(
+              'Intelligence & Santé',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.primaryLight,
+                letterSpacing: 2.8,
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(width: 12),
+            _LineDivider(toRight: true),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _LineDivider extends StatelessWidget {
+  final bool toRight;
+  const _LineDivider({required this.toRight});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 36,
+      height: 1,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin:
+              toRight ? Alignment.centerLeft : Alignment.centerRight,
+          end: toRight ? Alignment.centerRight : Alignment.centerLeft,
+          colors: const [Color(0xFF8B5CF6), Colors.transparent],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MINI LOGO — Auth screens (login, register, otp, etc.)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class NexoraMiniLogo extends StatelessWidget {
@@ -92,52 +212,59 @@ class NexoraMiniLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Stack(
           alignment: Alignment.center,
           children: [
+            // Outer ambient ring
             Container(
-              width: 100,
-              height: 100,
+              width: 104,
+              height: 104,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Color(0x428B5CF6),
-                    Color(0x1A6366F1),
+                    Color(0x458B5CF6),
+                    Color(0x1E6366F1),
                     Colors.transparent,
                   ],
                   stops: [0.0, 0.55, 1.0],
                 ),
               ),
             ),
+            // Core glow
             Container(
-              width: 64,
-              height: 64,
-              decoration: const BoxDecoration(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [Color(0x5E6366F1), Colors.transparent],
-                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6366F1).withAlpha(80),
+                    blurRadius: 20,
+                    spreadRadius: 4,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(
-              width: 48,
-              height: 48,
-              child: CustomPaint(painter: NexoraIconPainter()),
-            ),
+            const NexoraImageIcon(size: 62),
           ],
         ),
         const SizedBox(height: 16),
         ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.white, Color(0xFFCDD0FF), Colors.white],
+            colors: [
+              Color(0xFFFFFFFF),
+              Color(0xFFCDD0FF),
+              Color(0xFFFFFFFF),
+            ],
             stops: [0.0, 0.5, 1.0],
           ).createShader(bounds),
           blendMode: BlendMode.srcIn,
-          child: Text(
+          child: const Text(
             'NEXORA',
-            style: AppTextStyles.titleLarge.copyWith(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
               letterSpacing: 6,
@@ -159,85 +286,49 @@ class NexoraMiniLogo extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Full hero logo — large N icon + wordmark + tagline
-// Used on the Welcome Screen
+// SMALL LOGO — AppBars and headers
 // ─────────────────────────────────────────────────────────────────────────────
 
-class NexoraHeroLogo extends StatelessWidget {
-  const NexoraHeroLogo({super.key});
+class NexoraSmallLogo extends StatelessWidget {
+  final bool showText;
+  const NexoraSmallLogo({super.key, this.showText = true});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Stack(
           alignment: Alignment.center,
           children: [
             Container(
-              width: 172,
-              height: 172,
-              decoration: const BoxDecoration(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    Color(0x4A8B5CF6),
-                    Color(0x1A6366F1),
-                    Colors.transparent,
-                  ],
-                  stops: [0.0, 0.55, 1.0],
-                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6366F1).withAlpha(60),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                  ),
+                ],
               ),
             ),
-            Container(
-              width: 108,
-              height: 108,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [Color(0x706366F1), Colors.transparent],
-                ),
-              ),
-            ),
-            const SizedBox(
-              width: 74,
-              height: 74,
-              child: CustomPaint(painter: NexoraIconPainter()),
-            ),
+            const NexoraImageIcon(size: 26),
           ],
         ),
-        const SizedBox(height: 26),
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [
-              Color(0xFFFFFFFF),
-              Color(0xFFCDD0FF),
-              Color(0xFFFFFFFF),
-            ],
-            stops: [0.0, 0.5, 1.0],
-          ).createShader(bounds),
-          blendMode: BlendMode.srcIn,
-          child: Text(
+        if (showText) ...[
+          const SizedBox(width: 12),
+          Text(
             'NEXORA',
-            style: AppTextStyles.displaySmall.copyWith(
-              fontSize: 36,
+            style: AppTextStyles.headlineSmall.copyWith(
+              letterSpacing: 2,
               fontWeight: FontWeight.w800,
-              letterSpacing: 9,
-              color: Colors.white,
-              height: 1,
             ),
           ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Connect to Expertise',
-          style: AppTextStyles.labelMedium.copyWith(
-            color: AppColors.primaryLight,
-            letterSpacing: 2.4,
-            fontSize: 12,
-          ),
-        ),
+        ],
       ],
     );
   }

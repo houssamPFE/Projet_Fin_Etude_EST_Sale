@@ -109,4 +109,10 @@ class AuthService {
     }
     return LoginSuccess.fromJson(data);
   }
+
+  // ── Logout ─────────────────────────────────────────────────────────────────
+
+  Future<void> logout() async {
+    await _dio.post('/auth/logout');
+  }
 }

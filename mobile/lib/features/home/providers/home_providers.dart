@@ -24,3 +24,13 @@ final expertsProvider = FutureProvider<List<ExpertModel>>((ref) async {
       .map((e) => ExpertModel.fromJson(e as Map<String, dynamic>))
       .toList();
 });
+
+// Fetch reviews for a specific expert
+// GET /api/v1/experts/{id}/reviews → { data: [...] }
+final expertReviewsProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, int>((ref, expertId) async {
+  final dio = ref.watch(dioProvider);
+  final res = await dio.get<Map<String, dynamic>>('/experts/$expertId/reviews');
+  final data = res.data!['data'] as List? ?? [];
+  return data.map((r) => r as Map<String, dynamic>).toList();
+});

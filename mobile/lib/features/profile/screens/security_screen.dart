@@ -232,7 +232,8 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
   }
 
   Future<void> _confirmEnable() async {
-    if (_codeController.text.trim().length != 6) {
+    final code = _codeController.text.trim();
+    if (code.length != 6) {
       setState(() => _confirmError = 'Entrez un code à 6 chiffres.');
       return;
     }
@@ -242,7 +243,7 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
     });
     try {
       final dio = ref.read(dioProvider);
-      await dio.post('/auth/2fa/confirm', data: {'code': _codeController.text.trim()});
+      await dio.post('/auth/2fa/confirm', data: {'code': code});
       setState(() {
         _qrUrl = null;
         _secret = null;
@@ -250,18 +251,18 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
         _confirmLoading = false;
       });
       widget.onChanged();
-      if (mounted) {
-        _showSuccess(context, '2FA activée avec succès !');
-      }
+      if (mounted) _showSuccess(context, '2FA activée avec succès !');
     } on DioException catch (e) {
       setState(() {
         _confirmError = _parseError(e);
         _confirmLoading = false;
+        _codeController.clear();
       });
     } catch (_) {
       setState(() {
         _confirmError = 'Code invalide. Réessayez.';
         _confirmLoading = false;
+        _codeController.clear();
       });
     }
   }
@@ -285,18 +286,18 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
         _disableLoading = false;
       });
       widget.onChanged();
-      if (mounted) {
-        _showSuccess(context, '2FA désactivée.');
-      }
+      if (mounted) _showSuccess(context, '2FA désactivée.');
     } on DioException catch (e) {
       setState(() {
         _disableError = _parseError(e);
         _disableLoading = false;
+        _disablePassController.clear();
       });
     } catch (_) {
       setState(() {
         _disableError = 'Une erreur est survenue.';
         _disableLoading = false;
+        _disablePassController.clear();
       });
     }
   }
@@ -486,6 +487,13 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.done,
               maxLength: 6,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(6),
+              ],
+              onChanged: (v) {
+                if (v.length == 6 && !_confirmLoading) _confirmEnable();
+              },
             ),
             if (_confirmError != null) ...[
               const SizedBox(height: 8),
@@ -533,6 +541,13 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
               keyboardType: TextInputType.number,
               maxLength: 6,
               textInputAction: TextInputAction.done,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(6),
+              ],
+              onChanged: (v) {
+                if (v.length == 6 && !_disableLoading) _disableConfirm();
+              },
             ),
             if (_disableError != null) ...[
               const SizedBox(height: 8),

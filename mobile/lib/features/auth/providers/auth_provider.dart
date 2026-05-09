@@ -259,6 +259,12 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
   // ── Logout ────────────────────────────────────────────────────────────────
 
   Future<void> logout() async {
+    // Best-effort server-side token revocation
+    try {
+      await _service.logout();
+    } catch (_) {
+      // If the call fails (e.g. token already expired), we still clear locally
+    }
     await _storage.deleteAll();
     notifyAuthChanged();
   }

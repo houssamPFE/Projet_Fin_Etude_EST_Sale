@@ -8,6 +8,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../home/models/expert_model.dart';
+import '../../home/providers/home_providers.dart';
 import '../../chat/providers/conversations_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -176,38 +177,12 @@ const _kServices = {
 // Mock reviews (shared across all profiles)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const _kReviews = [
-  _ReviewData(
-    reviewer: 'Ahmed Benali',
-    initials: 'AB',
-    reviewerColor: Color(0xFF6366F1),
-    rating: 5,
-    comment: "Très professionnel et à l'écoute. Les explications sont claires et les conseils vraiment utiles. Je recommande vivement !",
-    date: 'Il y a 3 jours',
-  ),
-  _ReviewData(
-    reviewer: 'Fatima Moussaoui',
-    initials: 'FM',
-    reviewerColor: Color(0xFF8B5CF6),
-    rating: 5,
-    comment: "Excellente expérience ! La réponse a été rapide et le suivi très professionnel. Exactement ce dont j'avais besoin.",
-    date: 'Il y a 1 semaine',
-  ),
-  _ReviewData(
-    reviewer: 'Youssef Kadiri',
-    initials: 'YK',
-    reviewerColor: Color(0xFF3B82F6),
-    rating: 4,
-    comment: "Très bonne expertise. Je suis satisfait de la consultation et reviendrai certainement pour un suivi approfondi.",
-    date: 'Il y a 2 semaines',
-  ),
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ExpertProfileScreen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class ExpertProfileScreen extends StatelessWidget {
+class ExpertProfileScreen extends ConsumerWidget {
   final ExpertModel expert;
 
   const ExpertProfileScreen({
@@ -228,9 +203,10 @@ class ExpertProfileScreen extends StatelessWidget {
   List<_ServiceData> get _services => _kServices[expert.specialty] ?? _kDefaultServices;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final size = MediaQuery.sizeOf(context);
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final reviewsAsync = ref.watch(expertReviewsProvider(expert.id));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -310,11 +286,47 @@ class ExpertProfileScreen extends StatelessWidget {
                         badge: '$reviewCount avis',
                       ),
                       const SizedBox(height: 12),
-                      ..._kReviews.map(
-                        (r) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _ReviewCard(review: r),
+                      reviewsAsync.when(
+                        loading: () => const Center(
+                          child: CircularProgressIndicator(color: AppColors.primary),
                         ),
+                        error: (e, s) => const SizedBox.shrink(),
+                        data: (reviews) => reviews.isEmpty
+                            ? Text(
+                                'Aucun avis pour le moment.',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              )
+                            : Column(
+                                children: reviews.take(3).map((r) {
+                                  final user = r['user'] as Map<String, dynamic>?;
+                                  final name = user?['name'] as String? ?? 'Utilisateur';
+                                  final parts = name.trim().split(' ');
+                                  final initials = parts.length >= 2
+                                      ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+                                      : name.substring(0, 1).toUpperCase();
+                                  final rating = (r['rating'] as num?)?.toInt() ?? 5;
+                                  final comment = r['comment'] as String? ?? '';
+                                  final createdAt = r['created_at'] as String? ?? '';
+                                  final date = createdAt.isNotEmpty
+                                      ? createdAt.substring(0, 10)
+                                      : '';
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: _ReviewCard(
+                                      review: _ReviewData(
+                                        reviewer: name,
+                                        initials: initials,
+                                        reviewerColor: AppColors.primary,
+                                        rating: rating,
+                                        comment: comment,
+                                        date: date,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
                       ),
                     ],
                   ),

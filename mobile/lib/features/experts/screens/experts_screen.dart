@@ -130,23 +130,15 @@ class _ExpertsScreenState extends ConsumerState<ExpertsScreen> {
 
                         // Experts list
                         expertsAsync.when(
-                          loading: () => const SizedBox(
-                            height: 300,
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                color: AppColors.primary,
-                              ),
+                          loading: () => Column(
+                            children: List.generate(
+                              4,
+                              (index) => const ExpertCardShimmer(),
                             ),
                           ),
-                          error: (e, _) => SizedBox(
-                            height: 150,
-                            child: Center(
-                              child: Text(
-                                'Impossible de charger les experts',
-                                style: AppTextStyles.caption
-                                    .copyWith(color: AppColors.error),
-                              ),
-                            ),
+                          error: (e, _) => ErrorStateWidget(
+                            message: 'Impossible de charger la liste des experts.',
+                            onRetry: () => ref.refresh(expertsProvider.future),
                           ),
                           data: (experts) {
                             // Filter by category and search
@@ -162,25 +154,20 @@ class _ExpertsScreenState extends ConsumerState<ExpertsScreen> {
                             }).toList();
 
                             if (filtered.isEmpty) {
-                              return SizedBox(
-                                height: 200,
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.person_off_outlined,
-                                          size: 48,
-                                          color: AppColors.textTertiary),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        'Aucun expert trouvé',
-                                        style: AppTextStyles.bodyMedium
-                                            .copyWith(
-                                                color:
-                                                    AppColors.textSecondary),
-                                      ),
-                                    ],
-                                  ),
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 40),
+                                child: EmptyStateWidget(
+                                  icon: Icons.person_off_rounded,
+                                  title: 'Aucun expert trouvé',
+                                  message: 'Nous n\'avons trouvé aucun spécialiste correspondant à votre recherche.',
+                                  buttonText: 'Effacer les filtres',
+                                  onButtonTap: () {
+                                    _searchController.clear();
+                                    setState(() {
+                                      _searchQuery = '';
+                                      _selectedCategoryId = 0;
+                                    });
+                                  },
                                 ),
                               );
                             }

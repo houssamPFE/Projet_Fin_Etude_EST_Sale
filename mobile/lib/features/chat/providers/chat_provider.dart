@@ -10,12 +10,28 @@ import '../services/conversation_service.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _kAiResponses = [
-  'Bonjour ! Je suis l\'IA Nexora. Comment puis-je vous aider aujourd\'hui ?',
-  'Je comprends. Pouvez-vous me donner plus de détails ?',
-  'Merci pour cette précision. D\'après mon analyse, je vous recommande de consulter un spécialiste.',
-  'C\'est noté. Depuis combien de temps ressentez-vous cela ?',
-  'Je vais analyser votre demande. Avez-vous déjà consulté un expert pour ce problème ?',
-  'D\'accord. Je peux vous mettre en relation avec un expert si vous le souhaitez.',
+  {
+    'text': 'Bonjour ! Je suis l\'IA Nexora. Comment puis-je vous aider aujourd\'hui ?',
+  },
+  {
+    'text': 'Je comprends. Pouvez-vous me donner plus de détails sur vos symptômes ?',
+  },
+  {
+    'text': 'Merci pour ces précisions. D\'après mon analyse, je vous recommande vivement de consulter un spécialiste pour ce problème.',
+    'metadata': {
+      'type': 'expert_recommendation',
+      'expert': {
+        'id': 1,
+        'name': 'Dr. Amina Berrada',
+        'specialty': 'Pédiatre',
+        'rating': 4.9,
+        'hourlyRate': 250,
+      }
+    }
+  },
+  {
+    'text': 'C\'est noté. Depuis combien de temps ressentez-vous cela ?',
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,7 +100,7 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
         messages: [
           ChatMessage(
             id: 'ai_welcome',
-            text: _kAiResponses[0],
+            text: _kAiResponses[0]['text'] as String,
             type: MessageType.ai,
             createdAt: DateTime.now(),
           ),
@@ -172,9 +188,9 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
         for (final msg in messagesData) {
           final msgMap = msg as Map<String, dynamic>;
 
-          final type = msgMap['type'] == 'user'
+          final type = msgMap['sender_type'] == 'user'
               ? MessageType.user
-              : msgMap['type'] == 'expert'
+              : msgMap['sender_type'] == 'expert'
                   ? MessageType.expert
                   : MessageType.ai;
 
@@ -241,17 +257,23 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
     await Future.delayed(const Duration(milliseconds: 1500));
     if (_disposed) return;
 
-    final reply = _kAiResponses[
-        (state.messages.length) % _kAiResponses.length];
-    receiveMessage(reply, MessageType.ai);
+    final step = state.messages.length ~/ 2; 
+    final replyIndex = step % _kAiResponses.length;
+    final replyData = _kAiResponses[replyIndex];
+    
+    receiveMessage(
+      replyData['text'] as String, 
+      MessageType.ai,
+      metadata: replyData['metadata'] as Map<String, dynamic>?,
+    );
   }
 
   // ── Called by WebSocket layer when a message arrives ─────────────────────
 
-  void receiveMessage(String text, MessageType type) {
+  void receiveMessage(String text, MessageType type, {Map<String, dynamic>? metadata}) {
     if (_disposed) return;
     state = state.copyWith(
-      messages: [...state.messages, _build(text, type)],
+      messages: [...state.messages, _build(text, type, metadata: metadata)],
       isTyping: false,
     );
   }
@@ -265,11 +287,12 @@ class ChatNotifier extends AutoDisposeNotifier<ChatState> {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  ChatMessage _build(String text, MessageType type) => ChatMessage(
+  ChatMessage _build(String text, MessageType type, {Map<String, dynamic>? metadata}) => ChatMessage(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         text: text,
         type: type,
         createdAt: DateTime.now(),
+        metadata: metadata,
       );
 
 }

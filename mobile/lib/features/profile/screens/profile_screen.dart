@@ -241,7 +241,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           await ref.read(authProvider.notifier).logout();
           ref.invalidate(currentUserProvider);
           ref.read(localAvatarPathProvider.notifier).state = null;
-          if (mounted) context.go(AppRoutes.login);
+          if (mounted) context.go(AppRoutes.welcome);
         },
       ),
     );

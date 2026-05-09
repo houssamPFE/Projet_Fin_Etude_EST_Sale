@@ -38,15 +38,28 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
       _focusNodes[index - 1].requestFocus();
     }
     setState(() {});
+    // Auto-submit when all 6 digits are filled
+    if (index == 5 && value.length == 1 && _code.length == 6) {
+      _onVerify();
+    }
   }
 
   Future<void> _onVerify() async {
     if (_code.length < 6) return;
+    // Clear any previous error
+    ref.read(authProvider.notifier);
     final ok = await ref.read(authProvider.notifier).verify2fa(
           twoFactorToken: widget.twoFactorToken,
           code: _code,
         );
     if (ok && mounted) context.go(AppRoutes.home);
+    if (!ok && mounted) {
+      // Clear digits so user can retry immediately
+      for (final c in _controllers) {
+        c.clear();
+      }
+      _focusNodes[0].requestFocus();
+    }
   }
 
   @override

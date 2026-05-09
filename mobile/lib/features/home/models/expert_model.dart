@@ -54,7 +54,7 @@ class ExpertModel {
 
     return ExpertModel(
       id: json['id'] as int,
-      name: user?['name'] as String? ?? 'Unknown',
+      name: user?['name'] as String? ?? 'Expert',
       email: user?['email'] as String? ?? '',
       avatarUrl: user?['avatar_url'] as String?,
       categoryId: category?['id'] as int? ?? 0,

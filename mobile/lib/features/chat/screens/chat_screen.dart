@@ -567,6 +567,10 @@ class _AiBubble extends StatelessWidget {
                     style: AppTextStyles.bodyMedium.copyWith(height: 1.5),
                   ),
                 ),
+                if (message.metadata != null && message.metadata!['type'] == 'expert_recommendation') ...[
+                  const SizedBox(height: 8),
+                  _RichActionCard(expertData: message.metadata!['expert'] as Map<String, dynamic>),
+                ],
                 const SizedBox(height: 3),
                 Padding(
                   padding: const EdgeInsets.only(left: 2),
@@ -684,6 +688,116 @@ class _ExpertBubble extends StatelessWidget {
 
         const SizedBox(width: 60),
       ],
+    );
+  }
+}
+
+// ── Rich Action Card ────────────────────────────────────────────────────────
+
+class _RichActionCard extends StatelessWidget {
+  final Map<String, dynamic> expertData;
+
+  const _RichActionCard({required this.expertData});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = expertData['name'] as String;
+    final specialty = expertData['specialty'] as String;
+    final rating = expertData['rating'] as double;
+    final initials = name.split(RegExp(r'\s+')).last[0].toUpperCase();
+
+    return Container(
+      width: 240, // Fixed width for the card inside the chat
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withAlpha(80), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withAlpha(20),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary.withAlpha(30),
+                ),
+                child: Center(
+                  child: Text(
+                    initials,
+                    style: AppTextStyles.titleSmall.copyWith(
+                      color: AppColors.primaryLight,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: AppTextStyles.titleSmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      specialty,
+                      style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 14),
+              const SizedBox(width: 4),
+              Text(
+                rating.toString(),
+                style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () {}, // Action to connect with expert
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: AppGradients.button,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'Connecter',
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
