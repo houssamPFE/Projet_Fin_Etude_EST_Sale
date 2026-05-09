@@ -193,14 +193,14 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
 
   // Disable flow state
   bool _showDisable = false;
-  final _disablePassController = TextEditingController();
+  final _disableCodeController = TextEditingController();
   bool _disableLoading = false;
   String? _disableError;
 
   @override
   void dispose() {
     _codeController.dispose();
-    _disablePassController.dispose();
+    _disableCodeController.dispose();
     super.dispose();
   }
 
@@ -267,8 +267,9 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
   }
 
   Future<void> _disableConfirm() async {
-    if (_disablePassController.text.isEmpty) {
-      setState(() => _disableError = 'Entrez votre mot de passe.');
+    final code = _disableCodeController.text.trim();
+    if (code.length != 6 || int.tryParse(code) == null) {
+      setState(() => _disableError = 'Entrez le code à 6 chiffres de votre application.');
       return;
     }
     setState(() {
@@ -277,10 +278,10 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
     });
     try {
       final dio = ref.read(dioProvider);
-      await dio.post('/auth/2fa/disable', data: {'password': _disablePassController.text});
+      await dio.post('/auth/2fa/disable', data: {'code': code});
       setState(() {
         _showDisable = false;
-        _disablePassController.clear();
+        _disableCodeController.clear();
         _disableLoading = false;
       });
       widget.onChanged();
@@ -386,7 +387,7 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
                   onTap: () => setState(() {
                     _showDisable = !_showDisable;
                     _disableError = null;
-                    _disablePassController.clear();
+                    _disableCodeController.clear();
                   }),
                 )
               else if (_qrUrl == null)
@@ -519,18 +520,19 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
             Container(height: 1, color: AppColors.divider),
             const SizedBox(height: 20),
             Text(
-              'Entrez votre mot de passe pour désactiver la 2FA.',
+              'Entrez le code à 6 chiffres de votre application d\'authentification.',
               style: AppTextStyles.bodySmall
                   .copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 14),
             GlassTextField(
-              controller: _disablePassController,
-              label: 'Mot de passe',
-              hint: '••••••••',
-              prefixIcon: Icons.lock_outline_rounded,
-              obscureText: true,
+              controller: _disableCodeController,
+              label: 'Code d\'authentification',
+              hint: '123456',
+              prefixIcon: Icons.pin_outlined,
+              keyboardType: TextInputType.number,
               textInputAction: TextInputAction.done,
+              maxLength: 6,
             ),
             if (_disableError != null) ...[
               const SizedBox(height: 8),

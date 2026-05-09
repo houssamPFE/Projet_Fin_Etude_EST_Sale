@@ -15,6 +15,8 @@ import '../../features/experts/screens/expert_profile_screen.dart';
 import '../../features/home/models/expert_model.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/profile/screens/security_screen.dart';
+import '../../features/profile/screens/help_screen.dart';
+import '../../features/profile/screens/about_screen.dart';
 import '../../features/chat/screens/chat_screen.dart';
 import '../services/token_storage.dart';
 
@@ -23,20 +25,22 @@ import '../services/token_storage.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 abstract class AppRoutes {
-  static const welcome        = '/';
-  static const login          = '/login';
-  static const register       = '/register';
-  static const otp            = '/otp';
+  static const welcome = '/';
+  static const login = '/login';
+  static const register = '/register';
+  static const otp = '/otp';
   static const forgotPassword = '/forgot-password';
-  static const resetPassword  = '/reset-password';
-  static const twoFactor      = '/two-factor';
-  static const home           = '/home';
+  static const resetPassword = '/reset-password';
+  static const twoFactor = '/two-factor';
+  static const home = '/home';
   static const categoriesExplore = '/categories-explore';
-  static const experts        = '/experts';
-  static const expertProfile  = '/expert-profile';
-  static const profile        = '/profile';
-  static const security       = '/security';
-  static const chat           = '/chat';
+  static const experts = '/experts';
+  static const expertProfile = '/expert-profile';
+  static const profile = '/profile';
+  static const security = '/security';
+  static const help = '/help';
+  static const about = '/about';
+  static const chat = '/chat';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,10 +92,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.welcome,
         builder: (_, _) => const WelcomeScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.login,
-        builder: (_, _) => const LoginScreen(),
-      ),
+      GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(
         path: AppRoutes.register,
         builder: (_, _) => const RegisterScreen(),
@@ -121,10 +122,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return TwoFactorScreen(twoFactorToken: token);
         },
       ),
-      GoRoute(
-        path: AppRoutes.home,
-        builder: (_, _) => const HomeScreen(),
-      ),
+      GoRoute(path: AppRoutes.home, builder: (_, _) => const HomeScreen()),
       GoRoute(
         path: AppRoutes.categoriesExplore,
         builder: (_, _) => const CategoriesExploreScreen(),
@@ -148,17 +146,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.security,
         builder: (_, _) => const SecurityScreen(),
       ),
+      GoRoute(path: AppRoutes.help, builder: (_, _) => const HelpScreen()),
+      GoRoute(path: AppRoutes.about, builder: (_, _) => const AboutScreen()),
       GoRoute(
         path: AppRoutes.chat,
         builder: (context, state) {
           final args = state.extra! as Map<String, dynamic>;
           return ChatScreen(
-            name:           args['name']           as String,
-            initials:       args['initials']       as String,
-            color:          args['color']          as Color,
-            subtitle:       args['subtitle']       as String,
-            online:         args['online']         as bool? ?? true,
-            isAi:           args['isAi']           as bool? ?? false,
+            name: args['name'] as String,
+            initials: args['initials'] as String,
+            color: args['color'] as Color,
+            subtitle: args['subtitle'] as String,
+            online: args['online'] as bool? ?? true,
+            isAi: args['isAi'] as bool? ?? false,
             conversationId: args['conversationId'] as int?,
           );
         },

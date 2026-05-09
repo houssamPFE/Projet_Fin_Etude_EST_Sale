@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart' hide LoginResult;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -194,7 +195,10 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
   Future<LoginResult?> loginWithGoogle() async {
     state = const AuthState(isLoading: true);
     try {
-      final googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+      final googleSignIn = GoogleSignIn(
+        serverClientId: '838155054639-cn48046dqe7hq02svq3etae8eeqdh26f.apps.googleusercontent.com',
+        scopes: ['email', 'profile'],
+      );
       await googleSignIn.signOut(); // force account picker every time
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
@@ -208,7 +212,9 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
     } on DioException catch (e) {
       state = AuthState(error: _dioMessage(e));
       return null;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('Google login error: $e');
+      debugPrint('Stack: $st');
       state = const AuthState(error: 'Connexion Google échouée. Réessayez.');
       return null;
     }
