@@ -17,13 +17,22 @@ class ConversationShowController extends Controller
      */
     public function __invoke(Request $request, Conversation $conversation): JsonResponse
     {
+        $user     = $request->user();
+        $isExpert = $user->role->value === 'expert';
+
         // Authorization check
-        if (! $this->canAccess($request->user(), $conversation)) {
+        if (! $this->canAccess($user, $conversation)) {
             return response()->json(['message' => 'Non autorisé.'], 403);
         }
 
+        // Unread = only messages from the OTHER party (not the viewer's own messages)
+        $unreadSenderTypes = $isExpert ? ['user'] : ['expert', 'ai'];
+
         $conversation->load(['user', 'category', 'expert.user', 'review'])
-            ->loadCount(['messages', 'unreadMessages']);
+            ->loadCount([
+                'messages',
+                'unreadMessages' => fn ($q) => $q->whereIn('sender_type', $unreadSenderTypes),
+            ]);
 
         return response()->json([
             'data' => new ConversationResource($conversation),

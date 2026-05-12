@@ -85,6 +85,22 @@ export function useSendAudio(conversationId) {
   });
 }
 
+/**
+ * Mark all messages in a conversation as read for the current user.
+ * Call this when the user opens a conversation so the unread badge clears.
+ */
+export function useMarkAllRead(conversationId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.put(`/conversations/${conversationId}/messages/read-all`),
+    onSuccess: () => {
+      // Refresh the conversations list so the unread badge disappears instantly
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+
 export function useCreateConversation() {
   const queryClient = useQueryClient();
   return useMutation({

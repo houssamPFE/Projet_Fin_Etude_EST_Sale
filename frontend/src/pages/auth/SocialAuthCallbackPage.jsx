@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Loader2, Lock } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import useAuthStore from '../../stores/authStore';
 import './Auth.css';
@@ -16,8 +17,10 @@ export default function SocialAuthCallbackPage() {
 
   const payload = useMemo(() => parseHashPayload(window.location.hash), []);
   const [loading, setLoading] = useState(true);
-  const [twoFactorToken, setTwoFactorToken] = useState('');
   const [show2fa, setShow2fa] = useState(false);
+  const [is2faSetup, setIs2faSetup] = useState(false);
+  const [setupData, setSetupData] = useState(null);
+  const [twoFactorToken, setTwoFactorToken] = useState('');
   const [otpCode, setOtpCode] = useState('');
 
   const redirectAfterAuth = (user) => {
@@ -35,9 +38,15 @@ export default function SocialAuthCallbackPage() {
         return;
       }
 
-      if (payload.get('requires_2fa') === '1') {
-        setTwoFactorToken(payload.get('two_factor_token') ?? '');
+      if (payload.get('requires_2fa') === '1' || payload.get('requires_2fa_setup') === '1') {
+        setTwoFactorToken(payload.get('two_factor_token') || '');
         setShow2fa(true);
+        if (payload.get('requires_2fa_setup') === '1') {
+          setIs2faSetup(true);
+          try {
+            setSetupData(JSON.parse(payload.get('setup_data') || '{}'));
+          } catch(e) {}
+        }
         setLoading(false);
         return;
       }
@@ -94,42 +103,58 @@ export default function SocialAuthCallbackPage() {
     );
   }
 
-  return (
-    <div className="auth-page">
-      <h2 className="auth-title">Verification 2FA</h2>
-      <p className="auth-subtitle">Entrez le code de votre application d&apos;authentification.</p>
+  if (show2fa) {
+    return (
+      <div className="auth-page">
+        <h2 className="auth-title">Vérification 2FA</h2>
+        <p className="auth-subtitle">
+          {is2faSetup
+            ? "L'authentification à deux facteurs est obligatoire pour votre compte."
+            : "Entrez le code de votre application d'authentification"}
+        </p>
 
-      <form onSubmit={handle2faVerify} className="auth-form">
-        <div className="form-group">
-          <label className="form-label">Code TOTP</label>
-          <div className="input-wrapper">
-            <Lock size={18} className="input-icon" />
-            <input
-              type="text"
-              className="form-input input-with-icon"
-              placeholder="000000"
-              value={otpCode}
-              onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-              maxLength={6}
-              autoFocus
-              required
-            />
+        {is2faSetup && setupData && (
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <p style={{ fontSize: '0.875rem', color: '#495057', marginBottom: '1rem' }}>
+              Scannez ce QR Code avec Google Authenticator ou Authy :
+            </p>
+            <div style={{ display: 'inline-block', background: 'white', padding: '0.5rem', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+              <QRCodeSVG value={setupData.qr_code_url} size={160} bgColor="#ffffff" fgColor="#020617" />
+            </div>
+            <p style={{ fontSize: '0.8125rem', color: '#6c757d', marginTop: '0.75rem', fontFamily: 'monospace', letterSpacing: '1px' }}>
+              {setupData.secret}
+            </p>
+            <p style={{ fontSize: '0.8125rem', color: '#495057', marginTop: '1rem', fontWeight: 500 }}>
+              Puis entrez le code à 6 chiffres généré ci-dessous pour confirmer :
+            </p>
           </div>
-        </div>
+        )}
 
-        {error && <p className="form-error">{error}</p>}
+        <form onSubmit={handle2faVerify} className="auth-form">
+          <div className="form-group">
+            <label className="form-label">Code TOTP</label>
+            <div className="input-wrapper">
+              <Lock size={18} className="input-icon" />
+              <input
+                type="text"
+                className="form-input input-with-icon"
+                placeholder="000000"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value)}
+                maxLength={6}
+                autoFocus
+                required
+              />
+            </div>
+          </div>
+          {error && <p className="form-error">{error}</p>}
+          <button type="submit" className="btn btn-primary btn-lg w-full" disabled={loading}>
+            {loading ? <span className="spinner" /> : (is2faSetup ? 'Confirmer la configuration' : 'Vérifier')}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
-        <button type="submit" className="btn btn-primary btn-lg w-full" disabled={loading}>
-          {loading ? (
-            <span className="spinner" />
-          ) : (
-            <>
-              Verifier
-              <ArrowRight size={18} />
-            </>
-          )}
-        </button>
-      </form>
-    </div>
-  );
+  return null;
 }

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { MessageSquare, Users, Zap, ShieldCheck, Mic, ChevronRight, Loader2, Bell } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import { useConversations } from '../hooks/useConversations';
 import { useNotifications } from '../hooks/useNotifications';
@@ -31,6 +31,10 @@ function StatusBadge({ status }) {
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
+
+  // Experts and admins have their own dashboards — send them there immediately.
+  if (user?.role === 'expert') return <Navigate to="/expert/dashboard" replace />;
+  if (user?.role === 'admin')  return <Navigate to="/admin/dashboard"  replace />;
   const { data: convsData, isLoading: convsLoading } = useConversations();
   const { data: notifsData, isLoading: notifsLoading } = useNotifications({ per_page: 5 });
 

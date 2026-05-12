@@ -83,4 +83,18 @@ class NotificationService
             ['rating' => $rating, 'comment' => $comment],
         );
     }
+
+    /**
+     * Notify admins about a new expert application.
+     */
+    public function newExpertApplication(User $admin, User $applicant): Notification
+    {
+        return $this->send(
+            $admin,
+            'admin.expert_application',
+            'Nouvelle candidature',
+            "L'utilisateur {$applicant->name} a soumis une candidature.",
+            ['applicant_id' => $applicant->id],
+        );
+    }
 }

@@ -30,6 +30,10 @@ class User extends Authenticatable
         'facebook_id',
         'two_factor_secret',
         'two_factor_confirmed_at',
+        'require_2fa',
+        'fcm_token',
+        'last_seen_at',
+        'is_online_visible',
     ];
 
     protected $hidden = ['password', 'remember_token', 'two_factor_secret'];
@@ -37,11 +41,13 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'two_factor_confirmed_at' => 'datetime',
-            'password' => 'hashed',
-            'is_active' => 'boolean',
-            'role' => Role::class,
+            'email_verified_at'      => 'datetime',
+            'two_factor_confirmed_at'=> 'datetime',
+            'last_seen_at'           => 'datetime',
+            'password'               => 'hashed',
+            'is_active'              => 'boolean',
+            'is_online_visible'      => 'boolean',
+            'role'                   => Role::class,
         ];
     }
 

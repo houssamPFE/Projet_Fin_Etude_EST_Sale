@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 
@@ -15,6 +16,8 @@ class GlassTextField extends StatefulWidget {
   final bool obscureText;
   final int? maxLength;
   final String? Function(String?)? validator;
+  final List<TextInputFormatter>? inputFormatters;
+  final ValueChanged<String>? onChanged;
 
   const GlassTextField({
     super.key,
@@ -29,6 +32,8 @@ class GlassTextField extends StatefulWidget {
     this.obscureText = false,
     this.maxLength,
     this.validator,
+    this.inputFormatters,
+    this.onChanged,
   });
 
   @override
@@ -63,9 +68,14 @@ class _GlassTextFieldState extends State<GlassTextField> {
         boxShadow: _focused
             ? [
                 const BoxShadow(
-                  color: Color(0x506366F1),
-                  blurRadius: 18,
-                  spreadRadius: -4,
+                  color: Color(0x706366F1),
+                  blurRadius: 28,
+                  spreadRadius: -3,
+                ),
+                const BoxShadow(
+                  color: Color(0x306366F1),
+                  blurRadius: 48,
+                  spreadRadius: -8,
                 ),
               ]
             : [],
@@ -79,6 +89,8 @@ class _GlassTextFieldState extends State<GlassTextField> {
         autocorrect: widget.autocorrect,
         obscureText: widget.obscureText,
         maxLength: widget.maxLength,
+        inputFormatters: widget.inputFormatters,
+        onChanged: widget.onChanged,
         style: AppTextStyles.input,
         validator: widget.validator,
         decoration: InputDecoration(
@@ -86,7 +98,7 @@ class _GlassTextFieldState extends State<GlassTextField> {
           hintText: widget.hint,
           prefixIcon: Icon(widget.prefixIcon),
           fillColor: _focused
-              ? const Color(0x1A6366F1)
+              ? const Color(0x256366F1)
               : const Color(0x0F6366F1),
           filled: true,
           border: OutlineInputBorder(

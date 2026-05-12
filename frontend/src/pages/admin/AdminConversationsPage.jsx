@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { useAdminConversations } from '../../hooks/useAdmin';
 import CustomSelect from '../../components/CustomSelect';
+import { TableSkeleton } from '../../components/AdminSkeleton';
 import './AdminConversationsPage.css';
 
 const STATUS_COLORS = { ai: 'blue', expert: 'teal', open: 'green', closed: 'gray' };
@@ -11,7 +11,7 @@ export default function AdminConversationsPage() {
   const [page, setPage]     = useState(1);
 
   const { data, isLoading } = useAdminConversations({ status, page });
-  const conversations = data?.data?.data ?? [];
+  const conversations = Array.isArray(data?.data) ? data.data : (data?.data?.data ?? []);
   const meta          = data?.meta ?? {};
 
   return (
@@ -35,9 +35,10 @@ export default function AdminConversationsPage() {
       </div>
 
       {isLoading ? (
-        <div className="loading-center"><Loader2 className="spin" size={24} /></div>
+        <TableSkeleton rows={8} cols={6} />
       ) : (
         <>
+          <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -66,6 +67,7 @@ export default function AdminConversationsPage() {
               ))}
             </tbody>
           </table>
+          </div>
 
           {meta.last_page > 1 && (
             <div className="pagination">

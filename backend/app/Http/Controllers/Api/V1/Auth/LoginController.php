@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Api\V1\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Auth\LoginRequest;
 use App\Http\Resources\UserResource;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\AuthService;
 use App\Services\TwoFactorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Crypt;
 
 class LoginController extends Controller
 {
@@ -37,7 +39,14 @@ class LoginController extends Controller
             ], 403);
         }
 
-        // 2FA gate: if user has 2FA enabled, return a short-lived token
+        // 2FA Checks
+        $globalRequireAll = SystemSetting::get('require_2fa') === 'true' || SystemSetting::get('require_2fa') === true;
+        $globalRequireDoctor = (SystemSetting::get('require_doctor_2fa') === 'true' || SystemSetting::get('require_doctor_2fa') === true) && $user->role->value === 'expert';
+        $userRequire = $user->require_2fa;
+
+        $requires2Fa = $globalRequireAll || $globalRequireDoctor || $userRequire;
+
+        // If they already have it enabled
         if ($this->twoFactorService->isEnabled($user)) {
             $twoFactorToken = $this->authService->createTwoFactorToken($user);
 
@@ -45,6 +54,34 @@ class LoginController extends Controller
                 'message'          => 'Vérification 2FA requise.',
                 'requires_2fa'     => true,
                 'two_factor_token' => $twoFactorToken,
+            ]);
+        }
+
+        // If they MUST set it up, but it's not enabled
+        if ($requires2Fa) {
+            if (!$user->two_factor_secret) {
+                $setupData = $this->twoFactorService->enable($user);
+            } else {
+                $setupData = [
+                    'secret' => Crypt::decryptString($user->two_factor_secret),
+                    'qr_code_url' => $this->twoFactorService->getQrCodeUrl(
+                        $user,
+                        Crypt::decryptString($user->two_factor_secret)
+                    ),
+                ];
+            }
+            
+            // Revert back because TwoFactorService has getQrCodeUrl as private. Wait, I'll update getQrCodeUrl to public or just duplicate logic.
+            // Actually, getQrCodeUrl is private in TwoFactorService. Let's make it public in TwoFactorService or just use google2fa directly.
+            // To be safe, I'll update TwoFactorService to make it public.
+            
+            $twoFactorToken = $this->authService->createTwoFactorToken($user);
+
+            return response()->json([
+                'message' => 'Configuration 2FA requise.',
+                'requires_2fa_setup' => true,
+                'two_factor_token' => $twoFactorToken,
+                'setup_data' => $setupData,
             ]);
         }
 

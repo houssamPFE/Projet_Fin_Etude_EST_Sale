@@ -4,10 +4,13 @@ import {
   LayoutDashboard, MessageSquare, Users, Bell,
   Settings, LogOut, Menu, X, Wallet, UserCog,
   ShieldCheck, CreditCard, FolderOpen, UserPlus,
-  ChevronLeft, ChevronRight, BookOpen,
+  ChevronLeft, ChevronRight, BookOpen, Cpu, Server,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import useAuthStore from '../stores/authStore';
+import api from '../lib/api';
+import { useHeartbeat } from '../hooks/useHeartbeat';
 import NexoraBackground from '../components/NexoraBackground';
 import NotificationDropdown from '../components/NotificationDropdown';
 import './AppLayout.css';
@@ -27,6 +30,7 @@ const expertNavItems = [
   { to: '/expert/profile',   icon: UserCog,         label: 'Mon profil' },
   { to: '/expert/wallet',    icon: Wallet,          label: 'Portefeuille' },
   { to: '/notifications',    icon: Bell,            label: 'Notifications' },
+  { to: '/settings',         icon: Settings,        label: 'Paramètres' },
 ];
 
 const adminNavItems = [
@@ -37,6 +41,10 @@ const adminNavItems = [
   { to: '/admin/categories',    icon: FolderOpen,      label: 'Spécialités' },
   { to: '/admin/knowledge',     icon: BookOpen,        label: 'Base de connaissances' },
   { to: '/admin/payments',      icon: CreditCard,      label: 'Paiements' },
+  { type: 'section', label: 'Configuration' },
+  { to: '/admin/ai',            icon: Cpu,             label: 'IA' },
+  { to: '/admin/security',      icon: ShieldCheck,     label: 'Sécurité & 2FA' },
+  { to: '/admin/system',        icon: Server,          label: 'Système' },
 ];
 
 export default function AppLayout() {
@@ -49,14 +57,29 @@ export default function AppLayout() {
   const isAdmin  = user?.role === 'admin';
   const navItems = isAdmin ? adminNavItems : isExpert ? expertNavItems : userNavItems;
 
+  // Keep online presence alive — sends heartbeat every 30 seconds
+  useHeartbeat();
+
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!isAdmin) return;
+    const prefetch = (key, url) =>
+      qc.prefetchQuery({ queryKey: key, queryFn: () => api.get(url).then(r => r.data), staleTime: 1000 * 60 * 5 });
+    prefetch(['admin', 'dashboard'],          '/admin/dashboard');
+    prefetch(['admin', 'users',   {}],        '/admin/users');
+    prefetch(['admin', 'experts', {}],        '/admin/experts');
+    prefetch(['admin', 'settings'],           '/admin/settings');
+    prefetch(['admin', 'categories'],         '/admin/categories');
+  }, [isAdmin]);
+
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
 
   return (
-    <div className="app-layout">
-      <NexoraBackground />
+    <div className={`app-layout${isAdmin ? ' is-admin' : ''}`}>
+      {!isAdmin && <NexoraBackground />}
       <aside className={`sidebar ${sidebarOpen ? 'sidebar--open' : ''} ${collapsed ? 'sidebar--collapsed' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">
@@ -76,21 +99,30 @@ export default function AppLayout() {
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              title={collapsed ? label : undefined}
-              className={({ isActive }) => `sidebar-link ${isActive ? 'sidebar-link--active' : ''}`}
-              onClick={() => setSidebarOpen(false)}
-            >
-              <Icon size={20} />
-              <span className="sidebar-link-label">{label}</span>
-            </NavLink>
-          ))}
+          {isAdmin && !collapsed && (
+            <span className="sidebar-section-label">Menu administration</span>
+          )}
+          {navItems.map((item, i) => {
+            if (item.type === 'section') {
+              return <span key={`sec-${i}`} className="sidebar-section-label">{item.label}</span>;
+            }
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                title={collapsed ? item.label : undefined}
+                className={({ isActive }) => `sidebar-link ${isActive ? 'sidebar-link--active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Icon size={18} />
+                <span className="sidebar-link-label">{item.label}</span>
+              </NavLink>
+            );
+          })}
         </nav>
 
-        {!isAdmin && (
+        {!isAdmin && !isExpert && (
           <div className="sidebar-cta">
             <NavLink to="/conversations/new" className="sidebar-cta-btn" onClick={() => setSidebarOpen(false)}>
               <MessageSquare size={16} />
@@ -124,6 +156,9 @@ export default function AppLayout() {
           <button className="app-menu-btn" onClick={() => setSidebarOpen(true)}>
             <Menu size={22} />
           </button>
+          {isAdmin && (
+            <span className="admin-header-brand">Panneau d'administration</span>
+          )}
           <div style={{ flex: 1 }} />
           <div className="app-header-actions">
             <NotificationDropdown />

@@ -15,8 +15,11 @@ function ExpertCard({ expert, index }) {
       transition={{ duration: 0.35, delay: index * 0.06 }}
     >
       <div className="expert-card-header">
-        <div className="expert-avatar">
-          {expert.user?.name?.charAt(0)?.toUpperCase() ?? 'E'}
+        <div className="expert-avatar-wrap">
+          <div className="expert-avatar">
+            {expert.user?.name?.charAt(0)?.toUpperCase() ?? 'E'}
+          </div>
+          {expert.user?.is_online && <span className="expert-online-dot" />}
         </div>
         <div className="expert-card-meta">
           <h3 className="expert-name">{expert.user?.name}</h3>

@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\V1\Conversation\ConversationUpdateController;
 use App\Http\Controllers\Api\V1\Conversation\MessageAudioController;
 use App\Http\Controllers\Api\V1\Conversation\MessageListController;
 use App\Http\Controllers\Api\V1\Conversation\MessageReadController;
+use App\Http\Controllers\Api\V1\Conversation\MessageDeleteController;
 use App\Http\Controllers\Api\V1\Conversation\MessageSendController;
 use App\Http\Controllers\Api\V1\Conversation\TypingController;
 use App\Http\Controllers\Api\V1\Expert\ApplyController;
@@ -46,11 +47,14 @@ use App\Http\Controllers\Api\V1\Admin\AdminAiLogController;
 use App\Http\Controllers\Api\V1\Admin\AdminCategoryController;
 use App\Http\Controllers\Api\V1\Admin\AdminConversationController;
 use App\Http\Controllers\Api\V1\Admin\AdminDashboardController;
+use App\Http\Controllers\Api\V1\Admin\AdminExpertController;
 use App\Http\Controllers\Api\V1\Admin\AdminExpertListController;
 use App\Http\Controllers\Api\V1\Admin\AdminExpertValidateController;
 use App\Http\Controllers\Api\V1\Admin\AdminExpertRejectController;
 use App\Http\Controllers\Api\V1\Admin\AdminKnowledgeBaseController;
 use App\Http\Controllers\Api\V1\Admin\AdminPaymentsController;
+use App\Http\Controllers\Api\V1\Admin\AdminSystemSettingsController;
+use App\Http\Controllers\Api\V1\Admin\AdminDocumentStreamController;
 use App\Http\Controllers\Api\V1\Admin\AdminUserController;
 use App\Http\Controllers\Api\V1\AI\AiCallbackController;
 use App\Http\Controllers\Api\V1\AI\TranscriptionCompleteController;
@@ -63,7 +67,10 @@ use App\Http\Controllers\Api\V1\Payment\PaymentIntentController;
 use App\Http\Controllers\Api\V1\Payment\StripeWebhookController;
 use App\Http\Controllers\Api\V1\User\ChangePasswordController;
 use App\Http\Controllers\Api\V1\User\DeleteAccountController;
+use App\Http\Controllers\Api\V1\User\HeartbeatController;
+use App\Http\Controllers\Api\V1\User\OfflineController;
 use App\Http\Controllers\Api\V1\User\UserAvatarController;
+use App\Http\Controllers\Api\V1\User\FcmTokenController;
 use App\Http\Controllers\Api\V1\User\UserProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -120,8 +127,11 @@ Route::prefix('v1')->group(function () {
         Route::get('profile', [UserProfileController::class, 'show']);
         Route::put('profile', [UserProfileController::class, 'update']);
         Route::post('avatar', UserAvatarController::class);
+        Route::put('fcm-token', FcmTokenController::class);
         Route::put('password', ChangePasswordController::class);
         Route::delete('account', DeleteAccountController::class);
+        Route::post('heartbeat', HeartbeatController::class);
+        Route::post('offline',   OfflineController::class);
     });
 
     // ================================================================
@@ -171,6 +181,7 @@ Route::prefix('v1')->group(function () {
         Route::post('{conversation}/messages/audio', MessageAudioController::class);
         Route::put('{conversation}/messages/{message}/read', [MessageReadController::class, 'markOne']);
         Route::put('{conversation}/messages/read-all', [MessageReadController::class, 'markAll']);
+        Route::delete('{conversation}/messages/{message}', MessageDeleteController::class);
 
         // Typing indicator
         Route::post('{conversation}/typing', TypingController::class);
@@ -184,12 +195,23 @@ Route::prefix('v1')->group(function () {
 
         // Users
         Route::get('users', [AdminUserController::class, 'index']);
+        Route::put('users/{user}', [AdminUserController::class, 'update']);
         Route::put('users/{user}/toggle', [AdminUserController::class, 'toggle']);
+        Route::put('users/{user}/security', [AdminUserController::class, 'updateSecurity']);
 
-        // Experts
+        // Experts — list all (with status filter) + legacy pending endpoint
+        Route::get('experts', [AdminExpertController::class, 'index']);
         Route::get('experts/pending', AdminExpertListController::class);
         Route::put('experts/{expert}/validate', AdminExpertValidateController::class);
         Route::put('experts/{expert}/reject', AdminExpertRejectController::class);
+        Route::put('experts/{expert}/toggle', [AdminExpertController::class, 'toggleAvailability']);
+
+        // Document stream (proxy through Laravel — bypasses MinIO internal hostname)
+        Route::get('documents/{document}/stream', AdminDocumentStreamController::class);
+
+        // System settings
+        Route::get('settings', [AdminSystemSettingsController::class, 'index']);
+        Route::put('settings', [AdminSystemSettingsController::class, 'update']);
 
         // Conversations
         Route::get('conversations', AdminConversationController::class);

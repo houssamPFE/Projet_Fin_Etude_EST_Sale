@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Check, Loader2 } from 'lucide-react';
 import { useNotifications, useMarkAsRead, useMarkAllAsRead } from '../hooks/useNotifications';
 import './NotificationDropdown.css';
@@ -17,6 +17,7 @@ function timeAgo(iso) {
 export default function NotificationDropdown() {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const navigate = useNavigate();
 
   const { data, isLoading } = useNotifications({ per_page: 8 });
   const { mutate: markOne } = useMarkAsRead();
@@ -36,6 +37,12 @@ export default function NotificationDropdown() {
 
   const handleItemClick = (notification) => {
     if (!notification.read_at) markOne(notification.id);
+    setOpen(false);
+    // Navigate to the conversation if the notification has one
+    const convId = notification.data?.conversation_id;
+    if (convId) {
+      navigate(`/conversations/${convId}`);
+    }
   };
 
   return (

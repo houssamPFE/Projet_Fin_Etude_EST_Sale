@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart' hide LoginResult;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -198,7 +197,7 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
       final googleSignIn = GoogleSignIn(
         serverClientId: '838155054639-cn48046dqe7hq02svq3etae8eeqdh26f.apps.googleusercontent.com',
         scopes: ['email', 'profile'],
-      );
+        );
       await googleSignIn.signOut(); // force account picker every time
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
@@ -206,15 +205,20 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
         return null;
       }
       final auth = await googleUser.authentication;
-      final token = auth.accessToken;
+      // accessToken can be null on cached sessions — force a fresh token
+      String? token = auth.accessToken;
+      if (token == null) {
+        await googleSignIn.signOut();
+        final retry = await googleSignIn.signIn();
+        if (retry == null) { state = const AuthState(); return null; }
+        token = (await retry.authentication).accessToken;
+      }
       if (token == null) throw Exception('No access token from Google');
       return await _socialLogin('google', token);
     } on DioException catch (e) {
       state = AuthState(error: _dioMessage(e));
       return null;
-    } catch (e, st) {
-      debugPrint('Google login error: $e');
-      debugPrint('Stack: $st');
+    } catch (_) {
       state = const AuthState(error: 'Connexion Google échouée. Réessayez.');
       return null;
     }
@@ -262,6 +266,12 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
   // ── Logout ────────────────────────────────────────────────────────────────
 
   Future<void> logout() async {
+    // Best-effort server-side token revocation
+    try {
+      await _service.logout();
+    } catch (_) {
+      // If the call fails (e.g. token already expired), we still clear locally
+    }
     await _storage.deleteAll();
     notifyAuthChanged();
   }

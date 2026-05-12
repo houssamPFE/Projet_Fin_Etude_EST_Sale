@@ -64,7 +64,7 @@ export default function ExpertDetailPage() {
         <div className="ed-hero-main">
           <div className="ed-avatar-wrap">
             <div className="ed-avatar">{initials}</div>
-            {expert.is_available && <span className="ed-avatar-pulse" />}
+            {expert.user?.is_online && <span className="ed-avatar-pulse" />}
           </div>
 
           <div className="ed-hero-info">
@@ -81,9 +81,15 @@ export default function ExpertDetailPage() {
                   Vérifié INPE
                 </span>
               )}
+              {expert.user?.is_online && (
+                <span className="ed-chip ed-chip--online">
+                  <Activity size={12} />
+                  En ligne
+                </span>
+              )}
               <span className={`ed-chip ${expert.is_available ? 'ed-chip--available' : 'ed-chip--busy'}`}>
                 <span className="ed-dot" />
-                {expert.is_available ? 'Disponible maintenant' : 'Indisponible'}
+                {expert.is_available ? 'Disponible' : 'Indisponible'}
               </span>
             </div>
 

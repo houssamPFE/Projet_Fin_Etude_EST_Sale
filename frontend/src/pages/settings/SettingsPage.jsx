@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Loader2, Save, Camera, ShieldCheck, ShieldOff, QrCode } from 'lucide-react';
+import { Loader2, Save, Camera, ShieldCheck, ShieldOff, QrCode, Mail, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import useAuthStore from '../../stores/authStore';
@@ -16,6 +16,7 @@ export default function SettingsPage() {
   const [name, setName]         = useState(user?.name ?? '');
   const [phone, setPhone]       = useState(user?.phone ?? '');
   const [language, setLanguage] = useState(user?.language ?? 'fr');
+  const [onlineVisible, setOnlineVisible] = useState(user?.is_online_visible ?? true);
   const [deletePass, setDeletePass] = useState('');
   const [showDelete, setShowDelete] = useState(false);
 
@@ -28,6 +29,13 @@ export default function SettingsPage() {
   const { mutateAsync: updateProfile, isPending: saving }   = useUpdateProfile();
   const { mutateAsync: uploadAvatar, isPending: uploading }  = useUploadAvatar();
 
+  useEffect(() => {
+    setName(user?.name ?? '');
+    setPhone(user?.phone ?? '');
+    setLanguage(user?.language ?? 'fr');
+    setOnlineVisible(user?.is_online_visible ?? true);
+  }, [user?.name, user?.phone, user?.language, user?.is_online_visible]);
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
@@ -35,6 +43,18 @@ export default function SettingsPage() {
       toast.success('Profil mis à jour.');
     } catch {
       toast.error('Impossible de mettre à jour le profil.');
+    }
+  };
+
+  const handleOnlineVisibleToggle = async (value) => {
+    setOnlineVisible(value);
+    try {
+      await updateProfile({ is_online_visible: value });
+      toast.success(value ? 'Statut en ligne activé.' : 'Statut en ligne masqué.');
+    } catch {
+      // Revert on failure
+      setOnlineVisible(!value);
+      toast.error('Impossible de mettre à jour le statut.');
     }
   };
 
@@ -154,6 +174,19 @@ export default function SettingsPage() {
         </div>
 
         <div className="form-group">
+          <label className="form-label">E-mail</label>
+          <div className="readonly-input-wrap">
+            <Mail size={16} className="readonly-input-icon" />
+            <input
+              className="form-input form-input--readonly"
+              value={user?.email ?? ''}
+              readOnly
+              aria-readonly="true"
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
           <label className="form-label">Téléphone</label>
           <input
             className="form-input"
@@ -177,6 +210,33 @@ export default function SettingsPage() {
           {saving ? 'Enregistrement...' : 'Enregistrer'}
         </button>
       </form>
+
+      <div className="settings-card">
+        <h2 className="settings-card-title">Confidentialité</h2>
+        <div className="settings-toggle-row">
+          <div className="settings-toggle-info">
+            <div className="settings-toggle-icon" style={{ color: onlineVisible ? '#22C55E' : 'var(--text-muted)' }}>
+              {onlineVisible ? <Eye size={16} /> : <EyeOff size={16} />}
+            </div>
+            <div>
+              <p className="settings-toggle-label">Afficher mon statut en ligne</p>
+              <p className="settings-toggle-hint">
+                {onlineVisible
+                  ? 'Les autres voient quand vous êtes connecté.'
+                  : 'Votre statut en ligne est masqué pour tous.'}
+              </p>
+            </div>
+          </div>
+          <button
+            role="switch"
+            aria-checked={onlineVisible}
+            className={`settings-toggle-switch ${onlineVisible ? 'settings-toggle-switch--on' : ''}`}
+            onClick={() => handleOnlineVisibleToggle(!onlineVisible)}
+          >
+            <span className="settings-toggle-thumb" />
+          </button>
+        </div>
+      </div>
 
       <div className="settings-card">
         <h2 className="settings-card-title">Authentification à deux facteurs (2FA)</h2>

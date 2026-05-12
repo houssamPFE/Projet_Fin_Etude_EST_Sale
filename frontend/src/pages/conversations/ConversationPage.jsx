@@ -4,11 +4,12 @@ import { ArrowLeft, Send, Loader2, Bot, User, UserCheck, ShieldAlert, Phone, Mic
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConversation } from '../../hooks/useConversations';
-import { useMessages, useSendMessage, useSendAudio } from '../../hooks/useMessages';
+import { useMessages, useSendMessage, useSendAudio, useMarkAllRead } from '../../hooks/useMessages';
 import useAudioRecorder from '../../hooks/useAudioRecorder';
 import AudioMessage from '../../components/AudioMessage';
 import { getEcho } from '../../lib/echo';
 import useAuthStore from '../../stores/authStore';
+import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import './ConversationPage.css';
 
@@ -30,9 +31,25 @@ const SENDER_LABELS = {
   expert: 'Expert',
 };
 
-function MessageBubble({ message, currentUserId }) {
-  const isOwn = message.sender_type === 'user' && message.sender_id === currentUserId;
+function MessageBubble({ message, currentUser, isDeleted }) {
+  const isExpert = currentUser?.role === 'expert';
+
+  // "own" = the current user sent this message
+  // — patient: their messages have sender_type='user' and sender_id matches
+  // — expert: their messages have sender_type='expert' and sender_id matches
+  const isOwn = isExpert
+    ? message.sender_type === 'expert' && message.sender_id === currentUser?.id
+    : message.sender_type === 'user' && message.sender_id === currentUser?.id;
+
   const Icon = SENDER_ICONS[message.sender_type] ?? User;
+
+  // Context-aware sender label
+  const getSenderLabel = () => {
+    if (message.sender_type === 'user') return isExpert ? 'Patient' : 'Vous';
+    if (message.sender_type === 'ai') return 'IA Nexora';
+    if (message.sender_type === 'expert') return 'Expert';
+    return '';
+  };
 
   return (
     <motion.div
@@ -48,47 +65,63 @@ function MessageBubble({ message, currentUserId }) {
       )}
       <div className="msg-bubble-wrap">
         {!isOwn && (
-          <span className="msg-sender-label">{SENDER_LABELS[message.sender_type]}</span>
+          <span className="msg-sender-label">{getSenderLabel()}</span>
         )}
-        <div className={`msg-bubble msg-bubble--${isOwn ? 'own' : message.sender_type}`}>
-          {message.type === 'audio' ? (
-            <div className="msg-audio">
-              {message.audio_url ? (
-                <AudioMessage
-                  src={message.audio_url}
-                  variant={isOwn ? 'own' : message.sender_type}
-                />
-              ) : (
-                <span className="msg-audio-pending">Audio en cours d'envoi…</span>
-              )}
-              {message.transcription && (
-                <p className="msg-transcription">{message.transcription}</p>
-              )}
-            </div>
-          ) : (
-            <p className="msg-content">{message.content}</p>
-          )}
-        </div>
+
+        {isDeleted ? (
+          <div className="msg-bubble msg-bubble--deleted">
+            <span className="msg-deleted-icon">🚫</span>
+            <em>Ce message a été supprimé</em>
+          </div>
+        ) : (
+          <div className={`msg-bubble msg-bubble--${isOwn ? 'own' : message.sender_type}`}>
+            {message.type === 'audio' ? (
+              <div className="msg-audio">
+                {message.audio_url ? (
+                  <AudioMessage
+                    src={message.audio_url}
+                    variant={isOwn ? 'own' : message.sender_type}
+                  />
+                ) : (
+                  <span className="msg-audio-pending">Audio en cours d'envoi…</span>
+                )}
+                {message.transcription && (
+                  <p className="msg-transcription">{message.transcription}</p>
+                )}
+              </div>
+            ) : (
+              <p className="msg-content">{message.content}</p>
+            )}
+          </div>
+        )}
       </div>
     </motion.div>
   );
 }
 
-function TypingIndicator() {
+function TypingIndicator({ label }) {
+  const displayLabel = label || 'IA Nexora';
+  const isAi = !label;
   return (
-    <div className="msg-row msg-row--ai">
-      <div className="msg-avatar msg-avatar--ai">
-        <Bot size={16} />
+    <motion.div
+      className={`msg-row ${isAi ? 'msg-row--ai' : 'msg-row--expert'}`}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.2 }}
+    >
+      <div className={`msg-avatar msg-avatar--${isAi ? 'ai' : 'expert'}`}>
+        {isAi ? <Bot size={16} /> : <UserCheck size={16} />}
       </div>
       <div className="msg-bubble-wrap">
-        <span className="msg-sender-label">IA Nexora</span>
-        <div className="msg-bubble msg-bubble--ai msg-bubble--typing">
+        <span className="msg-sender-label">{displayLabel}</span>
+        <div className={`msg-bubble msg-bubble--${isAi ? 'ai' : 'expert'} msg-bubble--typing`}>
           <span className="typing-dot" />
           <span className="typing-dot" />
           <span className="typing-dot" />
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -96,19 +129,31 @@ export default function ConversationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const isExpert = user?.role === 'expert';
   const queryClient = useQueryClient();
 
-  const { data: conversation } = useConversation(id);
+  // Poll every 20 s as a fallback — WS presence events (ShouldBroadcastNow) update the
+  // dot instantly, but the poll catches any missed events within 20 s.
+  const { data: conversation } = useConversation(id, { refetchInterval: 20_000 });
   const { data: messagesData, isLoading: messagesLoading } = useMessages(id);
   const { mutateAsync: sendMessage, isPending: sending } = useSendMessage(id);
   const { mutateAsync: sendAudio, isPending: sendingAudio } = useSendAudio(id);
+  const { mutate: markAllRead } = useMarkAllRead(id);
 
   const recorder = useAudioRecorder();
 
   const [input, setInput] = useState('');
   const [aiTyping, setAiTyping] = useState(false);
+  const [peerTyping, setPeerTyping] = useState(false);   // other person is typing
+  const [peerTypingName, setPeerTypingName] = useState('');
+  // Real-time online override — null means "use value from conversation query"
+  const [presenceOverride, setPresenceOverride] = useState(null);
+  // Track real-time deleted message IDs (WS push while page is open)
+  const [deletedIds, setDeletedIds] = useState(new Set());
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const typingTimerRef = useRef(null);   // debounce: stop-typing after 2s idle
+  const isTypingRef = useRef(false);     // avoid duplicate API calls
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -118,29 +163,85 @@ export default function ConversationPage() {
     scrollToBottom();
   }, [messagesData, aiTyping, scrollToBottom]);
 
+  // Mark all incoming messages as read whenever the messages list updates
+  // (covers both the initial load and new messages arriving via WS)
+  useEffect(() => {
+    if (messagesData?.data?.length) {
+      markAllRead();
+    }
+  }, [messagesData, markAllRead]);
+
   // Real-time Echo subscription
   useEffect(() => {
     const echo = getEcho();
     const channel = echo.private(`conversation.${id}`);
 
-    channel.listen('.MessageSent', (event) => {
+    // MessageSent uses broadcastAs('message.sent')
+    channel.listen('.message.sent', (event) => {
       if (event.message?.sender_id !== user?.id) {
         queryClient.invalidateQueries({ queryKey: ['messages', id] });
       }
       setAiTyping(false);
     });
 
-    channel.listen('.AIResponseReady', () => {
+    // AIResponseReady uses broadcastAs('ai.response')
+    channel.listen('.ai.response', () => {
       queryClient.invalidateQueries({ queryKey: ['messages', id] });
       setAiTyping(false);
     });
 
+    // Cross-platform sync: message deleted on mobile → disappears on web instantly
+    channel.listen('.message.deleted', (event) => {
+      const deletedId = event.message_id;
+      if (deletedId) {
+        setDeletedIds((prev) => new Set([...prev, String(deletedId)]));
+      }
+    });
+
+    // Typing indicator from the other participant
+    channel.listen('.user.typing', (event) => {
+      if (event.user_id === user?.id) return; // ignore own events
+      if (event.is_typing) {
+        setPeerTyping(true);
+        setPeerTypingName(event.user_name ?? '');
+      } else {
+        setPeerTyping(false);
+      }
+    });
+
+    // Real-time presence — instantly update online dot from heartbeat / logout broadcasts
+    channel.listen('.user.presence', (event) => {
+      if (event.user_id === user?.id) return; // ignore own presence events
+      // true  → came online (heartbeat fired)
+      // false → went offline (logged out — clear Redis key broadcasted false immediately)
+      setPresenceOverride(event.is_online === true ? true : false);
+    });
+
     return () => {
-      channel.stopListening('.MessageSent');
-      channel.stopListening('.AIResponseReady');
+      channel.stopListening('.message.sent');
+      channel.stopListening('.ai.response');
+      channel.stopListening('.message.deleted');
+      channel.stopListening('.user.typing');
+      channel.stopListening('.user.presence');
       echo.leave(`conversation.${id}`);
     };
   }, [id, user?.id, queryClient]);
+
+  // When the conversation query re-fetches it brings a fresh is_online value.
+  // Only wipe the WS override if the fresh DB value matches what WS already told us,
+  // so the dot never flickers back to "online" after a logout broadcast.
+  useEffect(() => {
+    if (!conversation) return;
+    const isExpertInConv = user?.role === 'expert';
+    const otherUser = isExpertInConv ? conversation.user : conversation.expert?.user;
+    const freshOnline = otherUser?.is_online ?? false;
+    setPresenceOverride((prev) => {
+      // If WS told us "offline" but DB still hasn't caught up → keep WS value
+      if (prev === false && freshOnline === true) return false;
+      // Otherwise trust the fresh DB value (removes stale override)
+      return null;
+    });
+  }, [conversation, user?.role]);
 
   // Safety net 1: clear typing indicator as soon as the last message is from AI/expert
   useEffect(() => {
@@ -162,7 +263,10 @@ export default function ConversationPage() {
     const text = input.trim();
     if (!text || sending) return;
     setInput('');
-    if (conv?.status !== 'expert' && conv?.status !== 'closed') {
+    clearTimeout(typingTimerRef.current);
+    sendTypingStop();
+    // Only show AI typing when a patient sends in an AI/open conversation
+    if (!isExpert && conv?.status !== 'expert' && conv?.status !== 'closed') {
       setAiTyping(true);
     }
     try {
@@ -181,6 +285,33 @@ export default function ConversationPage() {
     }
   };
 
+  // ── Typing events ────────────────────────────────────────────────────────
+  const sendTypingStart = useCallback(() => {
+    if (isTypingRef.current) return;
+    isTypingRef.current = true;
+    api.post(`/conversations/${id}/typing`, { is_typing: true }).catch(() => {});
+  }, [id]);
+
+  const sendTypingStop = useCallback(() => {
+    if (!isTypingRef.current) return;
+    isTypingRef.current = false;
+    api.post(`/conversations/${id}/typing`, { is_typing: false }).catch(() => {});
+  }, [id]);
+
+  const handleInputChange = (e) => {
+    setInput(e.target.value);
+    sendTypingStart();
+    // Auto-stop typing after 2 seconds of idle
+    clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(sendTypingStop, 2000);
+  };
+
+  // Stop typing on unmount / send
+  useEffect(() => () => {
+    clearTimeout(typingTimerRef.current);
+    sendTypingStop();
+  }, [sendTypingStop]);
+
   useEffect(() => {
     if (recorder.error) toast.error(recorder.error);
   }, [recorder.error]);
@@ -188,7 +319,7 @@ export default function ConversationPage() {
   const handleSendAudio = async () => {
     if (!recorder.blob || sendingAudio) return;
     try {
-      if (conv?.status !== 'expert' && conv?.status !== 'closed') {
+      if (!isExpert && conv?.status !== 'expert' && conv?.status !== 'closed') {
         setAiTyping(true);
       }
       await sendAudio(recorder.blob);
@@ -208,25 +339,70 @@ export default function ConversationPage() {
   return (
     <div className="conv-page">
       {/* Header */}
-      <div className="conv-page-header">
-        <button className="back-btn" onClick={() => navigate('/conversations')}>
-          <ArrowLeft size={18} />
-        </button>
-        <div className="conv-page-header-info">
-          <h2 className="conv-page-title">
-            {conv?.title ?? `Conversation #${id}`}
-          </h2>
-          <span className="conv-page-meta">
-            {conv?.category?.name}
-            {conv?.expert && ` · ${conv.expert.user?.name}`}
-          </span>
-        </div>
-        {conv?.status && (
-          <span className={`conv-page-badge conv-page-badge--${conv.status}`}>
-            {conv.status === 'ai' ? 'IA' : conv.status === 'expert' ? 'Médecin' : conv.status === 'closed' ? 'Fermé' : 'Ouvert'}
-          </span>
-        )}
-      </div>
+      {(() => {
+        const otherUser  = isExpert ? conv?.user : conv?.expert?.user;
+        // presenceOverride: set instantly by WS; cleared when query re-fetches with fresh value
+        const isOnline   = presenceOverride !== null ? presenceOverride : (otherUser?.is_online ?? false);
+        const headerName = isExpert
+          ? (conv?.user?.name ?? `Conversation #${id}`)
+          : (conv?.status === 'ai' || !conv?.expert)
+            ? 'IA Nexora'
+            : (conv?.expert?.user?.name ?? `Conversation #${id}`);
+
+        return (
+          <div className="conv-page-header">
+            <button className="back-btn" onClick={() => navigate('/conversations')}>
+              <ArrowLeft size={18} />
+            </button>
+            <div className="conv-page-header-info">
+              <h2 className="conv-page-title">{headerName}</h2>
+              <AnimatePresence mode="wait">
+                {peerTyping ? (
+                  <motion.span
+                    key="typing"
+                    className="conv-page-status"
+                    style={{ color: '#A78BFA' }}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <span className="typing-dots"><span/><span/><span/></span>
+                    en train d&apos;écrire…
+                  </motion.span>
+                ) : isOnline ? (
+                  <motion.span
+                    key="online"
+                    className="conv-page-status conv-page-status--online"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <span className="conv-online-dot-sm" /> En ligne
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="offline"
+                    className="conv-page-status"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {conv?.category?.name ?? ''}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
+            {conv?.status && (
+              <span className={`conv-page-badge conv-page-badge--${conv.status}`}>
+                {conv.status === 'ai' ? 'IA' : conv.status === 'expert' ? 'Médecin' : conv.status === 'closed' ? 'Fermé' : 'Ouvert'}
+              </span>
+            )}
+          </div>
+        );
+      })()}
 
       {hasEmergency && (
         <div className="conv-emergency-banner" role="alert">
@@ -262,10 +438,18 @@ export default function ConversationPage() {
         ) : (
           <div className="conv-messages-list">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} currentUserId={user?.id} />
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                currentUser={user}
+                isDeleted={deletedIds.has(String(msg.id))}
+              />
             ))}
             <AnimatePresence>
-              {aiTyping && <TypingIndicator key="typing" />}
+              {aiTyping && <TypingIndicator key="ai-typing" />}
+              {peerTyping && !aiTyping && (
+                <TypingIndicator key="peer-typing" label={peerTypingName} />
+              )}
             </AnimatePresence>
           </div>
         )}
@@ -302,9 +486,9 @@ export default function ConversationPage() {
           <textarea
             ref={inputRef}
             className="conv-input"
-            placeholder="Décrivez votre symptôme..."
+            placeholder={isExpert ? 'Répondre au patient…' : 'Décrivez votre symptôme…'}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             rows={1}
             disabled={conv?.status === 'closed'}

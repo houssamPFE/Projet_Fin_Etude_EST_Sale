@@ -132,6 +132,11 @@
   gap: var(--space-sm);
 }
 
+.expert-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .expert-avatar {
   width: 48px;
   height: 48px;
@@ -143,8 +148,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
   box-shadow: 0 0 0 2px rgba(37,99,235,0.3);
+}
+
+/* Real-time online presence dot on expert avatar */
+.expert-online-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid var(--surface, #0f172a);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.7);
 }
 
 .expert-card-meta { flex: 1; min-width: 0; }

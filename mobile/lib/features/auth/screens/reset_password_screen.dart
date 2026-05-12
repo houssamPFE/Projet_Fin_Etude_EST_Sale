@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,40 +18,22 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
       _ResetPasswordScreenState();
 }
 
-class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
-  final _formKey             = GlobalKey<FormState>();
-  final _codeController      = TextEditingController();
-  final _passwordController  = TextEditingController();
-  final _confirmController   = TextEditingController();
-  bool _passwordVisible      = false;
-  bool _confirmVisible       = false;
+class _ResetPasswordScreenState
+    extends ConsumerState<ResetPasswordScreen> {
+  final _formKey = GlobalKey<FormState>();
 
-  @override
-  void dispose() {
-    _codeController.dispose();
-    _passwordController.dispose();
-    _confirmController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _onSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
-    final ok = await ref.read(authProvider.notifier).resetPassword(
-          email:    widget.email,
-          code:     _codeController.text.trim(),
-          password: _passwordController.text,
-        );
-    if (ok && mounted) {
+  Future<void> _onResend() async {
+    await ref.read(authProvider.notifier).forgotPassword(email: widget.email);
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mot de passe réinitialisé. Connectez-vous.')),
+        const SnackBar(content: Text('Lien renvoyé !')),
       );
-      context.go(AppRoutes.login);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final size      = MediaQuery.sizeOf(context);
+    final size = MediaQuery.sizeOf(context);
     final authState = ref.watch(authProvider);
 
     return Scaffold(
@@ -64,139 +47,131 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 const NexoraBackButton().animate().fadeIn(duration: 400.ms),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(28, 4, 28, 32),
+                    padding: const EdgeInsets.fromLTRB(28, 8, 28, 40),
                     child: Form(
                       key: _formKey,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 16),
-                          const Center(child: NexoraMiniLogo())
+                          const SizedBox(height: 20),
+
+                          // ── Sent illustration ────────────────────────────
+                          const _SentIllustration()
                               .animate()
-                              .fadeIn(duration: 600.ms)
-                              .scale(
-                                begin: const Offset(0.88, 0.88),
-                                end: const Offset(1.0, 1.0),
-                                curve: Curves.easeOutBack,
-                              ),
-                          const SizedBox(height: 40),
-                          Text('Nouveau mot de passe', style: AppTextStyles.displaySmall)
+                              .fadeIn(duration: 700.ms)
+                              .scale(curve: Curves.easeOutBack),
+
+                          const SizedBox(height: 32),
+
+                          Text(
+                            'Vérifiez votre e-mail',
+                            style: AppTextStyles.displaySmall,
+                            textAlign: TextAlign.center,
+                          )
                               .animate()
                               .fadeIn(delay: 150.ms, duration: 500.ms)
-                              .slideY(begin: 0.15, end: 0, curve: Curves.easeOut),
-                          const SizedBox(height: 10),
-                          RichText(
-                            text: TextSpan(
-                              style: AppTextStyles.bodyLarge,
-                              children: [
-                                const TextSpan(text: 'Code envoyé à '),
-                                TextSpan(
-                                  text: widget.email,
-                                  style: AppTextStyles.bodyLarge.copyWith(
-                                    color: AppColors.primaryLight,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ).animate().fadeIn(delay: 200.ms),
-                          const SizedBox(height: 32),
+                              .slideY(
+                                  begin: 0.12,
+                                  end: 0,
+                                  curve: Curves.easeOut),
 
-                          // ── OTP code ─────────────────────────────────────
-                          GlassTextField(
-                            controller: _codeController,
-                            label: 'Code de vérification',
-                            hint: '123456',
-                            prefixIcon: Icons.lock_outline_rounded,
-                            keyboardType: TextInputType.number,
-                            textInputAction: TextInputAction.next,
-                            validator: (v) {
-                              if (v == null || v.trim().length != 6) {
-                                return 'Le code doit comporter 6 chiffres';
-                              }
-                              return null;
-                            },
-                          )
-                              .animate()
-                              .fadeIn(delay: 280.ms, duration: 500.ms)
-                              .slideY(begin: 0.12, end: 0, curve: Curves.easeOut),
+                          const SizedBox(height: 12),
+
+                          Text(
+                            'Nous avons envoyé un lien de\nréinitialisation à :',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.textSecondary,
+                              height: 1.5,
+                            ),
+                            textAlign: TextAlign.center,
+                          ).animate().fadeIn(delay: 210.ms, duration: 500.ms),
+
                           const SizedBox(height: 14),
 
-                          // ── New password ──────────────────────────────────
-                          GlassPasswordField(
-                            controller: _passwordController,
-                            label: 'Nouveau mot de passe',
-                            hint: 'Minimum 8 caractères',
-                            visible: _passwordVisible,
-                            onToggle: () => setState(
-                              () => _passwordVisible = !_passwordVisible,
+                          // ── Email badge ──────────────────────────────────
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 16),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              color: Colors.white.withAlpha(5), // very subtle
+                              border: Border.all(
+                                  color: Colors.white.withAlpha(20)),
                             ),
-                            textInputAction: TextInputAction.next,
-                            validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return 'Veuillez créer un mot de passe';
-                              }
-                              if (v.length < 8) {
-                                return 'Minimum 8 caractères requis';
-                              }
-                              return null;
-                            },
-                          )
-                              .animate()
-                              .fadeIn(delay: 350.ms, duration: 500.ms)
-                              .slideY(begin: 0.12, end: 0, curve: Curves.easeOut),
-                          const SizedBox(height: 14),
-
-                          // ── Confirm password ──────────────────────────────
-                          GlassPasswordField(
-                            controller: _confirmController,
-                            label: 'Confirmer le mot de passe',
-                            hint: '••••••••',
-                            visible: _confirmVisible,
-                            onToggle: () => setState(
-                              () => _confirmVisible = !_confirmVisible,
+                            alignment: Alignment.center,
+                            child: Text(
+                              widget.email,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
                             ),
-                            textInputAction: TextInputAction.done,
-                            validator: (v) {
-                              if (v != _passwordController.text) {
-                                return 'Les mots de passe ne correspondent pas';
-                              }
-                              return null;
-                            },
-                          )
-                              .animate()
-                              .fadeIn(delay: 420.ms, duration: 500.ms)
-                              .slideY(begin: 0.12, end: 0, curve: Curves.easeOut),
+                          ).animate().fadeIn(delay: 270.ms, duration: 400.ms),
 
-                          if (authState.error != null) ...[
-                            const SizedBox(height: 16),
-                            Container(
+                          const SizedBox(height: 24),
+
+                          Text(
+                            'Le lien est valable pendant 15 minutes.',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF64748B),
+                            ),
+                            textAlign: TextAlign.center,
+                          ).animate().fadeIn(delay: 320.ms),
+
+                          const SizedBox(height: 48),
+
+                          // ── Resend Button (Outline) ──────────────────────
+                          GestureDetector(
+                            onTap: _onResend,
+                            child: Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 11),
+                              height: 54,
                               decoration: BoxDecoration(
-                                color: AppColors.error.withAlpha(20),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(14),
+                                color: Colors.transparent,
                                 border: Border.all(
-                                    color: AppColors.error.withAlpha(80)),
+                                  color: Colors.white.withAlpha(25),
+                                  width: 1,
+                                ),
                               ),
-                              child: Text(
-                                authState.error!,
-                                style: AppTextStyles.bodySmall
-                                    .copyWith(color: AppColors.error),
+                              alignment: Alignment.center,
+                              child: const Text(
+                                'Renvoyer le lien',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF818CF8), // Purple/Indigo tint
+                                ),
                               ),
                             ),
-                          ],
+                          ).animate().fadeIn(delay: 380.ms),
 
-                          const SizedBox(height: 32),
-                          NexoraGradientButton(
-                            label: 'Réinitialiser',
-                            isLoading: authState.isLoading,
-                            onTap: _onSubmit,
-                          )
-                              .animate()
-                              .fadeIn(delay: 490.ms, duration: 500.ms)
-                              .slideY(begin: 0.12, end: 0, curve: Curves.easeOut),
+                          const SizedBox(height: 24),
+
+                          // ── Return to login ──────────────────────────────
+                          GestureDetector(
+                            onTap: () {
+                              context.go(AppRoutes.login);
+                            },
+                            child: const Text(
+                              'Retour à la connexion',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF818CF8),
+                              ),
+                            ),
+                          ).animate().fadeIn(delay: 440.ms),
+
+                          Text(
+                            'Le lien est valable pendant 15 minutes.',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ).animate().fadeIn(delay: 640.ms),
                         ],
                       ),
                     ),
@@ -211,6 +186,78 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sent / paper-plane illustration
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SentIllustration extends StatelessWidget {
+  const _SentIllustration();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Outer glow
+        Container(
+          width: 160,
+          height: 160,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF8B5CF6).withAlpha(15),
+          ),
+        ),
+        // Glow shadow ring
+        Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6366F1).withAlpha(50),
+                blurRadius: 40,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+        ),
+        // Icon container — circle with outline gradient
+        Container(
+          width: 104,
+          height: 104,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.transparent,
+            border: Border.all(
+              color: const Color(0xFF8B5CF6).withAlpha(150), // Purple border
+              width: 1.5,
+            ),
+            boxShadow: [
+              // Inner ambient
+              BoxShadow(
+                color: const Color(0xFF6366F1).withAlpha(20),
+                blurRadius: 20,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.send_outlined,
+            size: 46,
+            color: Color(0xFFC4B5FD), // Light purple icon
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Background
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _RpBackground extends StatelessWidget {
   final Size size;
   const _RpBackground({required this.size});
@@ -220,21 +267,30 @@ class _RpBackground extends StatelessWidget {
     return Stack(
       children: [
         Positioned(
-          top: -size.height * 0.08,
-          left: -size.width * 0.15,
+          top: -size.height * 0.06,
+          left: -size.width * 0.12,
           child: BlurOrb(
-            width: size.width * 0.85,
-            height: size.height * 0.44,
-            color: const Color(0x326366F1),
+            width: size.width * 0.88,
+            height: size.height * 0.46,
+            color: const Color(0x526366F1),
           ),
         ),
         Positioned(
-          bottom: -size.height * 0.05,
-          right: size.width * 0.05,
+          top: size.height * 0.06,
+          right: -size.width * 0.22,
           child: BlurOrb(
-            width: size.width * 0.7,
-            height: size.height * 0.22,
-            color: const Color(0x188B5CF6),
+            width: size.width * 0.58,
+            height: size.width * 0.58,
+            color: const Color(0x403B82F6),
+          ),
+        ),
+        Positioned(
+          bottom: -size.height * 0.04,
+          right: size.width * 0.04,
+          child: BlurOrb(
+            width: size.width * 0.72,
+            height: size.height * 0.24,
+            color: const Color(0x228B5CF6),
           ),
         ),
       ],

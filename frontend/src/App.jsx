@@ -32,6 +32,10 @@ import AdminConversationsPage from './pages/admin/AdminConversationsPage';
 import AdminCategoriesPage from './pages/admin/AdminCategoriesPage';
 import AdminPaymentsPage from './pages/admin/AdminPaymentsPage';
 import AdminKnowledgeBasePage from './pages/admin/AdminKnowledgeBasePage';
+import AdminSettingsPage from './pages/admin/AdminSettingsPage';
+import AdminAIPage from './pages/admin/AdminAIPage';
+import AdminSecurityPage from './pages/admin/AdminSecurityPage';
+import AdminSystemPage from './pages/admin/AdminSystemPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import ApplyExpertPage from './pages/settings/ApplyExpertPage';
 import NotificationsPage from './pages/NotificationsPage';
@@ -47,7 +51,9 @@ function GuestRoute({ children }) {
   const { isAuthenticated, isLoading, user } = useAuthStore();
   if (isLoading) return <LoadingScreen />;
   if (isAuthenticated) {
-    return <Navigate to={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'} replace />;
+    if (user?.role === 'admin')  return <Navigate to="/admin/dashboard"  replace />;
+    if (user?.role === 'expert') return <Navigate to="/expert/dashboard" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   return children;
 }
@@ -131,6 +137,10 @@ export default function App() {
           <Route path="/admin/categories"    element={<AdminCategoriesPage />} />
           <Route path="/admin/payments"      element={<AdminPaymentsPage />} />
           <Route path="/admin/knowledge"     element={<AdminKnowledgeBasePage />} />
+          <Route path="/admin/settings"      element={<AdminSettingsPage />} />
+          <Route path="/admin/ai"            element={<AdminAIPage />} />
+          <Route path="/admin/security"      element={<AdminSecurityPage />} />
+          <Route path="/admin/system"        element={<AdminSystemPage />} />
         </Route>
 
         {/* Default redirect */}

@@ -193,14 +193,14 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
 
   // Disable flow state
   bool _showDisable = false;
-  final _disableCodeController = TextEditingController();
+  final _disablePassController = TextEditingController();
   bool _disableLoading = false;
   String? _disableError;
 
   @override
   void dispose() {
     _codeController.dispose();
-    _disableCodeController.dispose();
+    _disablePassController.dispose();
     super.dispose();
   }
 
@@ -232,7 +232,8 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
   }
 
   Future<void> _confirmEnable() async {
-    if (_codeController.text.trim().length != 6) {
+    final code = _codeController.text.trim();
+    if (code.length != 6) {
       setState(() => _confirmError = 'Entrez un code à 6 chiffres.');
       return;
     }
@@ -242,7 +243,7 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
     });
     try {
       final dio = ref.read(dioProvider);
-      await dio.post('/auth/2fa/confirm', data: {'code': _codeController.text.trim()});
+      await dio.post('/auth/2fa/confirm', data: {'code': code});
       setState(() {
         _qrUrl = null;
         _secret = null;
@@ -250,26 +251,26 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
         _confirmLoading = false;
       });
       widget.onChanged();
-      if (mounted) {
-        _showSuccess(context, '2FA activée avec succès !');
-      }
+      if (mounted) _showSuccess(context, '2FA activée avec succès !');
     } on DioException catch (e) {
       setState(() {
         _confirmError = _parseError(e);
         _confirmLoading = false;
+        _codeController.clear();
       });
     } catch (_) {
       setState(() {
         _confirmError = 'Code invalide. Réessayez.';
         _confirmLoading = false;
+        _codeController.clear();
       });
     }
   }
 
   Future<void> _disableConfirm() async {
-    final code = _disableCodeController.text.trim();
-    if (code.length != 6 || int.tryParse(code) == null) {
-      setState(() => _disableError = 'Entrez le code à 6 chiffres de votre application.');
+    final code = _disablePassController.text.trim();
+    if (code.length != 6) {
+      setState(() => _disableError = 'Entrez le code à 6 chiffres de votre authenticateur.');
       return;
     }
     setState(() {
@@ -281,22 +282,22 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
       await dio.post('/auth/2fa/disable', data: {'code': code});
       setState(() {
         _showDisable = false;
-        _disableCodeController.clear();
+        _disablePassController.clear();
         _disableLoading = false;
       });
       widget.onChanged();
-      if (mounted) {
-        _showSuccess(context, '2FA désactivée.');
-      }
+      if (mounted) _showSuccess(context, '2FA désactivée.');
     } on DioException catch (e) {
       setState(() {
         _disableError = _parseError(e);
         _disableLoading = false;
+        _disablePassController.clear();
       });
     } catch (_) {
       setState(() {
         _disableError = 'Une erreur est survenue.';
         _disableLoading = false;
+        _disablePassController.clear();
       });
     }
   }
@@ -387,7 +388,7 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
                   onTap: () => setState(() {
                     _showDisable = !_showDisable;
                     _disableError = null;
-                    _disableCodeController.clear();
+                    _disablePassController.clear();
                   }),
                 )
               else if (_qrUrl == null)
@@ -486,6 +487,13 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.done,
               maxLength: 6,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(6),
+              ],
+              onChanged: (v) {
+                if (v.length == 6 && !_confirmLoading) _confirmEnable();
+              },
             ),
             if (_confirmError != null) ...[
               const SizedBox(height: 8),
@@ -514,25 +522,32 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
               ),
             ),
           ],
-          // ── Disable flow: password ────────────────────────────────────────
+          // ── Disable flow: TOTP code ───────────────────────────────────────
           if (_showDisable) ...[
             const SizedBox(height: 20),
             Container(height: 1, color: AppColors.divider),
             const SizedBox(height: 20),
             Text(
-              'Entrez le code à 6 chiffres de votre application d\'authentification.',
+              'Entrez le code affiché sur votre authenticateur pour désactiver la 2FA.',
               style: AppTextStyles.bodySmall
                   .copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 14),
             GlassTextField(
-              controller: _disableCodeController,
-              label: 'Code d\'authentification',
+              controller: _disablePassController,
+              label: 'Code authenticateur',
               hint: '123456',
               prefixIcon: Icons.pin_outlined,
               keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.done,
               maxLength: 6,
+              textInputAction: TextInputAction.done,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(6),
+              ],
+              onChanged: (v) {
+                if (v.length == 6 && !_disableLoading) _disableConfirm();
+              },
             ),
             if (_disableError != null) ...[
               const SizedBox(height: 8),

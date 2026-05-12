@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, X, Loader2, Search, BookOpen } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Search, BookOpen } from 'lucide-react';
+import { KbSkeleton } from '../../components/AdminSkeleton';
 import {
   useAdminKnowledge,
   useCreateKnowledge,
@@ -122,7 +123,7 @@ export default function AdminKnowledgeBasePage() {
       </div>
 
       {isLoading ? (
-        <div className="loading-center"><Loader2 className="spin" size={24} /></div>
+        <KbSkeleton count={4} />
       ) : entries.length === 0 ? (
         <div className="kb-empty">
           <BookOpen size={42} style={{ opacity: 0.3, marginBottom: 12 }} />

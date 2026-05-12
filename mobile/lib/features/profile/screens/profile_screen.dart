@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/network/dio_client.dart' show dioProvider, fixStorageUrl;
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -19,8 +21,6 @@ import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/current_user_provider.dart';
 
 const _kAvatarColor = Color(0xFF6366F1);
-const _kNotifPushPref = 'profile.notifications.push';
-const _kNotifEmailPref = 'profile.notifications.email';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ProfileScreen
@@ -41,13 +41,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _phoneController = TextEditingController();
   bool _notifPush = true;
   bool _notifEmail = false;
+  String _language = 'fr';
+  bool _onlineVisible = true;
   bool _controllersHydrated = false;
   String? _saveError;
 
   @override
   void initState() {
     super.initState();
-    _loadNotificationPreferences();
+    _loadNotifPrefs();
+  }
+
+  Future<void> _loadNotifPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _notifPush     = prefs.getBool('notif_push')     ?? true;
+        _notifEmail    = prefs.getBool('notif_email')    ?? false;
+        _onlineVisible = prefs.getBool('online_visible') ?? true;
+      });
+    }
   }
 
   @override
@@ -57,32 +70,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.dispose();
   }
 
-  Future<void> _loadNotificationPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _notifPush = prefs.getBool(_kNotifPushPref) ?? _notifPush;
-      _notifEmail = prefs.getBool(_kNotifEmailPref) ?? _notifEmail;
-    });
-  }
-
-  Future<void> _setNotificationPreference({
-    required String key,
-    required bool value,
-    required void Function(bool value) updateLocal,
-  }) async {
-    setState(() => updateLocal(value));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(key, value);
-    if (mounted) {
-      _showToast('Préférence enregistrée', success: true);
-    }
-  }
-
   void _hydrateControllers(AuthUser user) {
     if (_controllersHydrated) return;
     _nameController.text = user.name;
     _phoneController.text = user.phone ?? '';
+    _language = user.language;
     _controllersHydrated = true;
   }
 
@@ -102,14 +94,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     });
     try {
       final dio = ref.read(dioProvider);
-      await dio.put(
-        '/users/profile',
-        data: {
-          'name': _nameController.text.trim(),
-          if (_phoneController.text.trim().isNotEmpty)
-            'phone': _phoneController.text.trim(),
-        },
-      );
+      await dio.put('/users/profile', data: {
+        'name': _nameController.text.trim(),
+        if (_phoneController.text.trim().isNotEmpty)
+          'phone': _phoneController.text.trim(),
+      });
       ref.invalidate(currentUserProvider);
       _controllersHydrated = false;
       if (mounted) {
@@ -171,18 +160,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(
-                Icons.photo_library_outlined,
-                color: AppColors.primaryLight,
-              ),
+              leading: const Icon(Icons.photo_library_outlined,
+                  color: AppColors.primaryLight),
               title: Text('Galerie photo', style: AppTextStyles.titleSmall),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
             ListTile(
-              leading: const Icon(
-                Icons.camera_alt_outlined,
-                color: AppColors.primaryLight,
-              ),
+              leading: const Icon(Icons.camera_alt_outlined,
+                  color: AppColors.primaryLight),
               title: Text('Prendre une photo', style: AppTextStyles.titleSmall),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
@@ -219,8 +204,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _showToast('Photo de profil mise à jour !', success: true);
       }
     } on DioException catch (e) {
-      final msg =
-          e.response?.data?['message'] as String? ??
+      final msg = e.response?.data?['message'] as String? ??
           'Erreur lors de l\'upload.';
       if (mounted) {
         ref.read(localAvatarPathProvider.notifier).state = null;
@@ -245,6 +229,87 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     Future.delayed(const Duration(seconds: 3), entry.remove);
   }
 
+  Future<void> _onLanguageTap() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _LanguagePicker(current: _language),
+    );
+    if (picked == null || picked == _language || !mounted) return;
+    final previous = _language;
+    setState(() => _language = picked);
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.put('/users/profile', data: {'language': picked});
+      ref.invalidate(currentUserProvider);
+      _controllersHydrated = false;
+      _showToast('Langue mise à jour', success: true);
+    } catch (_) {
+      setState(() => _language = previous);
+      _showToast('Impossible de changer la langue', success: false);
+    }
+  }
+
+  Future<void> _onPushChanged(bool value) async {
+    setState(() => _notifPush = value);
+    // Show toast instantly — don't wait for FCM/backend
+    _showToast(
+      value ? 'Notifications push activées' : 'Notifications push désactivées',
+      success: true,
+    );
+    // Backend work in background
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notif_push', value);
+    if (value) {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        try {
+          await ref.read(dioProvider).put('/users/fcm-token', data: {'fcm_token': token});
+          await prefs.setString('fcm_token', token);
+        } catch (_) {}
+      }
+    } else {
+      await FirebaseMessaging.instance.deleteToken();
+      await prefs.remove('fcm_token');
+    }
+  }
+
+  Future<void> _onEmailChanged(bool value) async {
+    setState(() => _notifEmail = value);
+    // Show toast instantly — don't wait for backend
+    _showToast(
+      value ? 'Notifications e-mail activées' : 'Notifications e-mail désactivées',
+      success: true,
+    );
+    // Backend work in background
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notif_email', value);
+    try {
+      await ref.read(dioProvider).put('/users/profile', data: {'email_notifications': value});
+    } catch (_) {}
+  }
+
+  Future<void> _onOnlineVisibleChanged(bool value) async {
+    setState(() => _onlineVisible = value);
+    _showToast(
+      value ? 'Statut en ligne visible' : 'Statut en ligne masqué',
+      success: true,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('online_visible', value);
+    try {
+      await ref.read(dioProvider).put('/users/profile', data: {'is_online_visible': value});
+      ref.invalidate(currentUserProvider);
+    } catch (_) {
+      // Revert if API call fails
+      setState(() => _onlineVisible = !value);
+      await prefs.setBool('online_visible', !value);
+    }
+  }
+
   void _onLogout() {
     showDialog(
       context: context,
@@ -254,7 +319,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           await ref.read(authProvider.notifier).logout();
           ref.invalidate(currentUserProvider);
           ref.read(localAvatarPathProvider.notifier).state = null;
-          if (mounted) context.go(AppRoutes.login);
+          if (mounted) context.go(AppRoutes.welcome);
         },
       ),
     );
@@ -291,23 +356,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   phoneController: _phoneController,
                   notifPush: _notifPush,
                   notifEmail: _notifEmail,
+                  language: _language,
+                  onlineVisible: _onlineVisible,
                   saveError: _saveError,
                   onToggleEdit: _toggleEdit,
                   onAvatarTap: _isEditing ? _onAvatarTap : null,
-                  onPushChanged: (v) {
-                    _setNotificationPreference(
-                      key: _kNotifPushPref,
-                      value: v,
-                      updateLocal: (value) => _notifPush = value,
-                    );
-                  },
-                  onEmailChanged: (v) {
-                    _setNotificationPreference(
-                      key: _kNotifEmailPref,
-                      value: v,
-                      updateLocal: (value) => _notifEmail = value,
-                    );
-                  },
+                  onPushChanged: _onPushChanged,
+                  onEmailChanged: _onEmailChanged,
+                  onOnlineVisibleChanged: _onOnlineVisibleChanged,
+                  onLanguageTap: _onLanguageTap,
                   onLogout: _onLogout,
                 );
               },
@@ -333,11 +390,15 @@ class _ProfileContent extends StatelessWidget {
   final TextEditingController phoneController;
   final bool notifPush;
   final bool notifEmail;
+  final String language;
+  final bool onlineVisible;
   final String? saveError;
   final VoidCallback onToggleEdit;
   final VoidCallback? onAvatarTap;
   final ValueChanged<bool> onPushChanged;
   final ValueChanged<bool> onEmailChanged;
+  final ValueChanged<bool> onOnlineVisibleChanged;
+  final VoidCallback onLanguageTap;
   final VoidCallback onLogout;
 
   const _ProfileContent({
@@ -350,11 +411,15 @@ class _ProfileContent extends StatelessWidget {
     required this.phoneController,
     required this.notifPush,
     required this.notifEmail,
+    required this.language,
+    required this.onlineVisible,
     required this.saveError,
     required this.onToggleEdit,
     required this.onAvatarTap,
     required this.onPushChanged,
     required this.onEmailChanged,
+    required this.onOnlineVisibleChanged,
+    required this.onLanguageTap,
     required this.onLogout,
   });
 
@@ -385,17 +450,17 @@ class _ProfileContent extends StatelessWidget {
               children: [
                 const SizedBox(height: 28),
                 Center(
-                      child: _AvatarSection(
-                        isEditing: isEditing,
-                        isUploading: isUploadingAvatar,
-                        name: user.name,
-                        initials: user.initials,
-                        avatarUrl: user.avatarUrl,
-                        localAvatarPath: localAvatarPath,
-                        memberSince: _memberSince,
-                        onAvatarTap: onAvatarTap,
-                      ),
-                    )
+                  child: _AvatarSection(
+                    isEditing: isEditing,
+                    isUploading: isUploadingAvatar,
+                    name: user.name,
+                    initials: user.initials,
+                    avatarUrl: user.avatarUrl,
+                    localAvatarPath: localAvatarPath,
+                    memberSince: _memberSince,
+                    onAvatarTap: onAvatarTap,
+                  ),
+                )
                     .animate()
                     .fadeIn(delay: 80.ms, duration: 500.ms)
                     .scale(
@@ -405,37 +470,43 @@ class _ProfileContent extends StatelessWidget {
                     ),
                 const SizedBox(height: 28),
                 _InfoCard(
-                      nameController: nameController,
-                      phoneController: phoneController,
-                      isEditing: isEditing,
-                      email: user.email,
-                      phone: user.phone,
-                    )
+                  nameController: nameController,
+                  phoneController: phoneController,
+                  isEditing: isEditing,
+                  email: user.email,
+                  phone: user.phone,
+                )
                     .animate()
                     .fadeIn(delay: 160.ms, duration: 500.ms)
                     .slideY(begin: 0.08, end: 0, curve: Curves.easeOut),
                 if (saveError != null) ...[
                   const SizedBox(height: 10),
-                  _ErrorBanner(
-                    message: saveError!,
-                  ).animate().fadeIn(duration: 300.ms),
+                  _ErrorBanner(message: saveError!)
+                      .animate()
+                      .fadeIn(duration: 300.ms),
                 ],
                 const SizedBox(height: 26),
-                _SectionLabel(
-                  label: 'Paramètres',
-                ).animate().fadeIn(delay: 230.ms),
+                _SectionLabel(label: 'Paramètres')
+                    .animate()
+                    .fadeIn(delay: 230.ms),
                 const SizedBox(height: 10),
                 _SettingsCard(
-                      notifPush: notifPush,
-                      notifEmail: notifEmail,
-                      onPushChanged: onPushChanged,
-                      onEmailChanged: onEmailChanged,
-                    )
+                  notifPush: notifPush,
+                  notifEmail: notifEmail,
+                  language: language,
+                  onlineVisible: onlineVisible,
+                  onPushChanged: onPushChanged,
+                  onEmailChanged: onEmailChanged,
+                  onOnlineVisibleChanged: onOnlineVisibleChanged,
+                  onLanguageTap: onLanguageTap,
+                )
                     .animate()
                     .fadeIn(delay: 270.ms, duration: 500.ms)
                     .slideY(begin: 0.06, end: 0, curve: Curves.easeOut),
                 const SizedBox(height: 20),
-                _SectionLabel(label: 'Compte').animate().fadeIn(delay: 330.ms),
+                _SectionLabel(label: 'Compte')
+                    .animate()
+                    .fadeIn(delay: 330.ms),
                 const SizedBox(height: 10),
                 _AccountCard()
                     .animate()
@@ -450,9 +521,8 @@ class _ProfileContent extends StatelessWidget {
                 Center(
                   child: Text(
                     'Nexora v1.0.0',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textTertiary),
                   ),
                 ).animate().fadeIn(delay: 490.ms),
               ],
@@ -527,8 +597,6 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const NexoraBackButton(),
-        const SizedBox(width: 10),
         Text('Mon Profil', style: AppTextStyles.headlineSmall),
         const Spacer(),
         GestureDetector(
@@ -555,7 +623,9 @@ class _ProfileHeader extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        isEditing ? Icons.check_rounded : Icons.edit_outlined,
+                        isEditing
+                            ? Icons.check_rounded
+                            : Icons.edit_outlined,
                         size: 14,
                         color: isEditing
                             ? Colors.white
@@ -705,7 +775,10 @@ class _AvatarSection extends StatelessWidget {
     // Local file takes priority — always visible, never blocked by network issues
     if (localAvatarPath != null) {
       return ClipOval(
-        child: Image.file(File(localAvatarPath!), fit: BoxFit.cover),
+        child: Image.file(
+          File(localAvatarPath!),
+          fit: BoxFit.cover,
+        ),
       );
     }
     if (avatarUrl != null && avatarUrl!.isNotEmpty) {
@@ -728,7 +801,10 @@ class _AvatarSection extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [_kAvatarColor.withAlpha(220), _kAvatarColor.withAlpha(150)],
+          colors: [
+            _kAvatarColor.withAlpha(220),
+            _kAvatarColor.withAlpha(150),
+          ],
         ),
       ),
       child: Center(
@@ -775,7 +851,9 @@ class _InfoCard extends StatelessWidget {
         color: AppColors.card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isEditing ? AppColors.primary.withAlpha(80) : AppColors.border,
+          color: isEditing
+              ? AppColors.primary.withAlpha(80)
+              : AppColors.border,
         ),
         boxShadow: isEditing
             ? [
@@ -793,9 +871,8 @@ class _InfoCard extends StatelessWidget {
               children: [
                 Text(
                   'Informations personnelles',
-                  style: AppTextStyles.titleSmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+                  style: AppTextStyles.titleSmall
+                      .copyWith(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 16),
                 GlassTextField(
@@ -827,9 +904,8 @@ class _InfoCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       'L\'adresse e-mail ne peut pas être modifiée.',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textTertiary),
                     ),
                   ],
                 ),
@@ -853,7 +929,8 @@ class _InfoCard extends StatelessWidget {
                   icon: Icons.phone_outlined,
                   label: 'Téléphone',
                   value: hasPhone ? phone! : 'Non renseigné',
-                  valueColor: hasPhone ? null : AppColors.textTertiary,
+                  valueColor:
+                      hasPhone ? null : AppColors.textTertiary,
                 ),
               ],
             ),
@@ -936,11 +1013,8 @@ class _ErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            size: 16,
-            color: AppColors.error,
-          ),
+          const Icon(Icons.error_outline_rounded,
+              size: 16, color: AppColors.error),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -981,14 +1055,22 @@ class _SectionLabel extends StatelessWidget {
 class _SettingsCard extends StatelessWidget {
   final bool notifPush;
   final bool notifEmail;
+  final String language;
+  final bool onlineVisible;
   final ValueChanged<bool> onPushChanged;
   final ValueChanged<bool> onEmailChanged;
+  final ValueChanged<bool> onOnlineVisibleChanged;
+  final VoidCallback onLanguageTap;
 
   const _SettingsCard({
     required this.notifPush,
     required this.notifEmail,
+    required this.language,
+    required this.onlineVisible,
     required this.onPushChanged,
     required this.onEmailChanged,
+    required this.onOnlineVisibleChanged,
+    required this.onLanguageTap,
   });
 
   @override
@@ -1015,18 +1097,26 @@ class _SettingsCard extends StatelessWidget {
             onChanged: onEmailChanged,
           ),
           Container(height: 1, color: AppColors.divider),
+          _ToggleRow(
+            icon: Icons.circle_rounded,
+            label: 'Afficher mon statut en ligne',
+            value: onlineVisible,
+            onChanged: onOnlineVisibleChanged,
+            iconColor: onlineVisible ? AppColors.success : AppColors.textTertiary,
+          ),
+          Container(height: 1, color: AppColors.divider),
           _NavRow(
             icon: Icons.language_rounded,
             label: 'Langue',
             isLast: true,
+            onTap: onLanguageTap,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Français',
-                  style: AppTextStyles.labelMedium.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+                  language == 'ar' ? 'العربية' : 'Français',
+                  style: AppTextStyles.labelMedium
+                      .copyWith(color: AppColors.textSecondary),
                 ),
                 const SizedBox(width: 6),
                 const Icon(
@@ -1048,12 +1138,14 @@ class _ToggleRow extends StatelessWidget {
   final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final Color? iconColor;
 
   const _ToggleRow({
     required this.icon,
     required this.label,
     required this.value,
     required this.onChanged,
+    this.iconColor,
   });
 
   @override
@@ -1069,10 +1161,12 @@ class _ToggleRow extends StatelessWidget {
               color: AppColors.surfaceElevated,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 17, color: AppColors.primaryLight),
+            child: Icon(icon, size: 17, color: iconColor ?? AppColors.primaryLight),
           ),
           const SizedBox(width: 14),
-          Expanded(child: Text(label, style: AppTextStyles.titleSmall)),
+          Expanded(
+            child: Text(label, style: AppTextStyles.titleSmall),
+          ),
           Switch(
             value: value,
             onChanged: onChanged,
@@ -1122,7 +1216,9 @@ class _NavRow extends StatelessWidget {
               child: Icon(icon, size: 17, color: AppColors.primaryLight),
             ),
             const SizedBox(width: 14),
-            Expanded(child: Text(label, style: AppTextStyles.titleSmall)),
+            Expanded(
+              child: Text(label, style: AppTextStyles.titleSmall),
+            ),
             trailing ??
                 const Icon(
                   Icons.chevron_right_rounded,
@@ -1143,6 +1239,28 @@ class _NavRow extends StatelessWidget {
 class _AccountCard extends StatelessWidget {
   const _AccountCard();
 
+  void _showHelp(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const _HelpSheet(),
+    );
+  }
+
+  void _showAbout(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const _AboutSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1162,14 +1280,14 @@ class _AccountCard extends StatelessWidget {
           _NavRow(
             icon: Icons.help_outline_rounded,
             label: 'Aide & Support',
-            onTap: () => context.push(AppRoutes.help),
+            onTap: () => _showHelp(context),
           ),
           Container(height: 1, color: AppColors.divider),
           _NavRow(
             icon: Icons.info_outline_rounded,
             label: 'À propos de Nexora',
             isLast: true,
-            onTap: () => context.push(AppRoutes.about),
+            onTap: () => _showAbout(context),
           ),
         ],
       ),
@@ -1223,9 +1341,8 @@ class _LogoutButtonState extends State<_LogoutButton> {
               const SizedBox(width: 10),
               Text(
                 'Se déconnecter',
-                style: AppTextStyles.buttonMedium.copyWith(
-                  color: AppColors.error,
-                ),
+                style: AppTextStyles.buttonMedium
+                    .copyWith(color: AppColors.error),
               ),
             ],
           ),
@@ -1283,9 +1400,8 @@ class _LogoutDialog extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               'Vous serez redirigé vers la page de connexion.',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textSecondary,
-              ),
+              style: AppTextStyles.bodySmall
+                  .copyWith(color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 28),
@@ -1304,9 +1420,8 @@ class _LogoutDialog extends StatelessWidget {
                       child: Center(
                         child: Text(
                           'Annuler',
-                          style: AppTextStyles.buttonMedium.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                          style: AppTextStyles.buttonMedium
+                              .copyWith(color: AppColors.textSecondary),
                         ),
                       ),
                     ),
@@ -1331,9 +1446,8 @@ class _LogoutDialog extends StatelessWidget {
                       child: Center(
                         child: Text(
                           'Déconnecter',
-                          style: AppTextStyles.buttonMedium.copyWith(
-                            color: AppColors.error,
-                          ),
+                          style: AppTextStyles.buttonMedium
+                              .copyWith(color: AppColors.error),
                         ),
                       ),
                     ),
@@ -1397,9 +1511,8 @@ class _ToastNotificationState extends State<_ToastNotification>
   Widget build(BuildContext context) {
     final color = widget.success ? AppColors.success : AppColors.error;
     final bg = widget.success ? AppColors.successBg : AppColors.errorBg;
-    final icon = widget.success
-        ? Icons.check_circle_rounded
-        : Icons.error_rounded;
+    final icon =
+        widget.success ? Icons.check_circle_rounded : Icons.error_rounded;
 
     return Positioned(
       bottom: MediaQuery.of(context).padding.bottom + 24,
@@ -1412,7 +1525,8 @@ class _ToastNotificationState extends State<_ToastNotification>
           child: Material(
             color: Colors.transparent,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               decoration: BoxDecoration(
                 color: bg,
                 borderRadius: BorderRadius.circular(16),
@@ -1480,11 +1594,8 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              color: AppColors.error,
-              size: 36,
-            ),
+            const Icon(Icons.error_outline_rounded,
+                color: AppColors.error, size: 36),
             const SizedBox(height: 12),
             Text(
               message,
@@ -1496,24 +1607,282 @@ class _ErrorState extends StatelessWidget {
               onTap: onRetry,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 10,
-                ),
+                    horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
                   gradient: AppGradients.button,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   'Réessayer',
-                  style: AppTextStyles.labelMedium.copyWith(
-                    color: Colors.white,
-                  ),
+                  style:
+                      AppTextStyles.labelMedium.copyWith(color: Colors.white),
                 ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Language picker bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LanguagePicker extends StatelessWidget {
+  final String current;
+  const _LanguagePicker({required this.current});
+
+  static const _langs = [
+    ('fr', 'Français', 'French'),
+    ('ar', 'العربية', 'Arabic'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 12),
+        Container(
+          width: 36,
+          height: 4,
+          decoration: BoxDecoration(
+            color: AppColors.border,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text('Langue', style: AppTextStyles.titleMedium),
+        ),
+        const SizedBox(height: 8),
+        for (final (code, label, sublabel) in _langs) ...[
+          InkWell(
+            onTap: () => Navigator.pop(context, code),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(label, style: AppTextStyles.titleSmall),
+                        const SizedBox(height: 2),
+                        Text(sublabel,
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.textTertiary)),
+                      ],
+                    ),
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: current == code
+                            ? AppColors.primary
+                            : AppColors.border,
+                        width: current == code ? 6 : 2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Container(height: 1, color: AppColors.divider),
+        ],
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Help bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _HelpSheet extends StatelessWidget {
+  const _HelpSheet();
+
+  Future<void> _launch(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      (
+        Icons.bug_report_outlined,
+        'Signaler un problème',
+        'Signaler un bug ou un dysfonctionnement',
+        () => _launch('mailto:support@nexora.ma?subject=Problème%20signalé&body=Décrivez%20votre%20problème%20ici...'),
+      ),
+      (
+        Icons.receipt_long_outlined,
+        'Conditions d\'utilisation',
+        'Lire nos conditions générales',
+        () => _launch('https://nexora.ma/conditions'),
+      ),
+      (
+        Icons.headset_mic_outlined,
+        'Nous contacter',
+        'Parler à notre équipe support',
+        () => _launch('mailto:support@nexora.ma?subject=Demande%20de%20support%20Nexora'),
+      ),
+    ];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 12),
+        Container(
+          width: 36, height: 4,
+          decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+        ),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text('Aide & Support', style: AppTextStyles.titleMedium),
+        ),
+        const SizedBox(height: 8),
+        for (final (icon, label, subtitle, action) in items) ...[
+          InkWell(
+            onTap: action,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, size: 18, color: AppColors.primaryLight),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(label, style: AppTextStyles.titleSmall),
+                        const SizedBox(height: 2),
+                        Text(subtitle, style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textTertiary),
+                ],
+              ),
+            ),
+          ),
+          Container(height: 1, color: AppColors.divider),
+        ],
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// About bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AboutSheet extends StatelessWidget {
+  const _AboutSheet();
+
+  Future<void> _launch(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final links = [
+      (Icons.description_outlined,  'Conditions d\'utilisation',      'https://nexora.ma/conditions'),
+      (Icons.privacy_tip_outlined,  'Politique de confidentialité',   'https://nexora.ma/confidentialite'),
+      (Icons.cookie_outlined,       'Politique des cookies',           'https://nexora.ma/cookies'),
+    ];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 12),
+        Container(
+          width: 36, height: 4,
+          decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+        ),
+        const SizedBox(height: 28),
+
+        // Real Nexora logo
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF8B5CF6).withAlpha(80),
+                blurRadius: 24,
+                spreadRadius: -4,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Image.asset(
+              'assets/images/logo.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text('Nexora', style: AppTextStyles.headlineSmall),
+        const SizedBox(height: 4),
+        Text(
+          'Version 1.0.0',
+          style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Télémédecine assistée par l\'IA',
+          style: AppTextStyles.caption.copyWith(color: AppColors.primaryLight),
+        ),
+        const SizedBox(height: 28),
+
+        for (final (icon, label, url) in links) ...[
+          InkWell(
+            onTap: () => _launch(url),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              child: Row(
+                children: [
+                  Icon(icon, size: 20, color: AppColors.textSecondary),
+                  const SizedBox(width: 16),
+                  Expanded(child: Text(label, style: AppTextStyles.titleSmall)),
+                  const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textTertiary),
+                ],
+              ),
+            ),
+          ),
+          Container(height: 1, color: AppColors.divider),
+        ],
+        const SizedBox(height: 20),
+        Text(
+          '© 2026 Nexora. Tous droits réservés.',
+          style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary),
+        ),
+        const SizedBox(height: 32),
+      ],
     );
   }
 }

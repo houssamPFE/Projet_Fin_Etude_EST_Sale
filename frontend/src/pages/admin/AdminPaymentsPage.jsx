@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { DollarSign, CreditCard, Loader2 } from 'lucide-react';
+import { DollarSign, CreditCard } from 'lucide-react';
 import { useAdminPayments } from '../../hooks/useAdmin';
 import CustomSelect from '../../components/CustomSelect';
+import { TableSkeleton, StatCardsSkeleton } from '../../components/AdminSkeleton';
 import './AdminPaymentsPage.css';
 
 const STATUS_COLOR = { completed: 'green', pending: 'orange', failed: 'red', refunded: 'blue' };
@@ -12,7 +13,7 @@ export default function AdminPaymentsPage() {
   const [page, setPage]       = useState(1);
 
   const { data, isLoading } = useAdminPayments({ status, provider, page });
-  const payments = data?.data?.data ?? [];
+  const payments = Array.isArray(data?.data) ? data.data : (data?.data?.data ?? []);
   const meta     = data?.meta ?? {};
   const stats    = data?.stats ?? {};
 
@@ -63,9 +64,10 @@ export default function AdminPaymentsPage() {
       </div>
 
       {isLoading ? (
-        <div className="loading-center"><Loader2 className="spin" size={24} /></div>
+        <TableSkeleton rows={8} cols={6} />
       ) : (
         <>
+          <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -92,6 +94,7 @@ export default function AdminPaymentsPage() {
               ))}
             </tbody>
           </table>
+          </div>
 
           {meta.last_page > 1 && (
             <div className="pagination">

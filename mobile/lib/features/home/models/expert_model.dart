@@ -13,6 +13,8 @@ class ExpertModel {
   final double rating;
   final int reviewCount;
   final bool isAvailable;
+  /// Real-time online presence — true when the doctor's heartbeat Redis key is alive.
+  final bool isOnline;
 
   const ExpertModel({
     required this.id,
@@ -27,6 +29,7 @@ class ExpertModel {
     required this.rating,
     required this.reviewCount,
     required this.isAvailable,
+    this.isOnline = false,
   });
 
   String get initials {
@@ -54,7 +57,7 @@ class ExpertModel {
 
     return ExpertModel(
       id: json['id'] as int,
-      name: user?['name'] as String? ?? 'Unknown',
+      name: user?['name'] as String? ?? 'Expert',
       email: user?['email'] as String? ?? '',
       avatarUrl: user?['avatar_url'] as String?,
       categoryId: category?['id'] as int? ?? 0,
@@ -65,6 +68,7 @@ class ExpertModel {
       rating: _parseIntOrDouble(json['rating_avg']),
       reviewCount: json['total_reviews'] as int? ?? 0,
       isAvailable: json['is_available'] as bool? ?? false,
+      isOnline: user?['is_online'] as bool? ?? false,
     );
   }
 

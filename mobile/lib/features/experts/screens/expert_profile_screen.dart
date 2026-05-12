@@ -8,26 +8,12 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../home/models/expert_model.dart';
+import '../../home/providers/home_providers.dart';
 import '../../chat/providers/conversations_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data classes
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _ServiceData {
-  final String name;
-  final String description;
-  final String duration;
-  final int price;
-  final IconData icon;
-  const _ServiceData({
-    required this.name,
-    required this.description,
-    required this.duration,
-    required this.price,
-    required this.icon,
-  });
-}
 
 class _ReviewData {
   final String reviewer;
@@ -46,168 +32,13 @@ class _ReviewData {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock bios
-// ─────────────────────────────────────────────────────────────────────────────
 
-const _kDefaultBio =
-    "Expert qualifié avec plus de 8 ans d'expérience dans son domaine. "
-    "Approche personnalisée et rigoureuse, combinant expertise technique et écoute active. "
-    "Disponible pour des consultations en français et en arabe, avec un engagement fort "
-    "pour la satisfaction et l'accompagnement de chaque client.";
-
-const _kBios = {
-  'Médecine':
-      "Médecin généraliste diplômée de la Faculté de Médecine de Casablanca, avec "
-          "plus de 8 ans d'expérience en médecine générale et préventive. Spécialisée "
-          "dans le diagnostic et le suivi des maladies chroniques : diabète, hypertension "
-          "et maladies respiratoires. Approche centrée sur le patient, combinant médecine "
-          "préventive et curative. Consultations disponibles en français et en arabe.",
-  'Droit':
-      "Avocat inscrit au Barreau de Casablanca depuis 2015, expert en droit des "
-          "affaires et droit commercial. Fort de 9 ans d'expérience dans l'accompagnement "
-          "juridique des entreprises et des particuliers. Intervenant régulier pour les "
-          "contrats commerciaux, litiges et conseils en création d'entreprise. "
-          "Membre de l'Association des Avocats d'Affaires du Maroc.",
-  'Fiscalité':
-      "Expert-comptable et conseiller fiscal agréé avec 10 ans d'expérience dans "
-          "l'optimisation fiscale pour PME et indépendants. Maîtrise parfaite du code "
-          "général des impôts marocain, TVA, IR et IS. Accompagnement complet de la "
-          "déclaration fiscale au contrôle fiscal, avec un réseau solide d'experts.",
-  'Finance':
-      "Analyste financier certifié avec 11 ans d'expérience en gestion de patrimoine, "
-          "marchés boursiers et planification financière. Expertise en investissement, "
-          "épargne et stratégies de diversification adaptées au marché marocain et africain. "
-          "Ancien conseiller senior dans un cabinet de conseil financier international.",
-  'Technologie':
-      "Ingénieur en informatique diplômé de l'ENSIAS, spécialisé en développement "
-          "logiciel, intelligence artificielle et transformation digitale. 7 ans d'expérience "
-          "en startups et grands groupes. Expert en architecture cloud, APIs RESTful et "
-          "solutions IA pour entreprises. Contributeur open-source actif.",
-  'Éducation':
-      "Conseillère pédagogique avec 12 ans d'expérience dans l'orientation scolaire "
-          "et universitaire. Maîtrise des systèmes éducatifs marocain, français et international. "
-          "Accompagnement personnalisé pour lycéens et étudiants dans leur choix de filière "
-          "et préparation aux concours des grandes écoles.",
-  'Entrepreneuriat':
-      "Entrepreneur et mentor reconnu, fondateur de 3 startups à succès au Maroc "
-          "et en Afrique subsaharienne. Expert en business planning, levée de fonds, "
-          "stratégie go-to-market et développement commercial B2B. Mentor dans plusieurs "
-          "programmes d'incubation et accélération au Maroc.",
-  'Administration':
-      "Ancienne fonctionnaire et consultante en administration publique depuis 15 ans. "
-          "Expertise dans les démarches administratives, marchés publics, permis de "
-          "construire et formalités légales. Facilite les relations avec l'administration "
-          "marocaine avec transparence et efficacité.",
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock services
-// ─────────────────────────────────────────────────────────────────────────────
-
-const _kDefaultServices = [
-  _ServiceData(
-    name: 'Consultation standard',
-    description: "Analyse de votre situation et conseils personnalisés",
-    duration: '30 min',
-    price: 150,
-    icon: Icons.chat_outlined,
-  ),
-  _ServiceData(
-    name: 'Accompagnement complet',
-    description: "Suivi approfondi avec plan d'action détaillé",
-    duration: '60 min',
-    price: 280,
-    icon: Icons.support_agent_rounded,
-  ),
-  _ServiceData(
-    name: 'Session premium',
-    description: 'Session intensive avec rapport et recommandations',
-    duration: '90 min',
-    price: 450,
-    icon: Icons.workspace_premium_outlined,
-  ),
-];
-
-const _kServices = {
-  'Médecine': [
-    _ServiceData(name: 'Consultation médicale', description: 'Diagnostic, conseils et ordonnance si nécessaire', duration: '30 min', price: 150, icon: Icons.medical_services_outlined),
-    _ServiceData(name: 'Suivi chronique', description: 'Suivi mensuel pour diabète, HTA, asthme...', duration: '45 min', price: 200, icon: Icons.favorite_outline_rounded),
-    _ServiceData(name: 'Bilan de santé complet', description: 'Analyse globale et plan de prévention personnalisé', duration: '60 min', price: 350, icon: Icons.health_and_safety_outlined),
-  ],
-  'Droit': [
-    _ServiceData(name: 'Consultation juridique', description: 'Analyse et conseils pour votre situation légale', duration: '45 min', price: 200, icon: Icons.gavel_rounded),
-    _ServiceData(name: 'Rédaction de contrat', description: 'Rédaction, révision et validation de contrats', duration: '60 min', price: 350, icon: Icons.description_outlined),
-    _ServiceData(name: 'Gestion de litige', description: 'Stratégie et soutien pour résolution de conflits', duration: '90 min', price: 500, icon: Icons.balance_rounded),
-  ],
-  'Fiscalité': [
-    _ServiceData(name: 'Déclaration fiscale', description: 'Préparation et optimisation de votre déclaration', duration: '45 min', price: 120, icon: Icons.receipt_long_outlined),
-    _ServiceData(name: 'Audit fiscal', description: 'Analyse complète de votre situation fiscale', duration: '60 min', price: 250, icon: Icons.account_balance_outlined),
-    _ServiceData(name: 'Accompagnement contrôle', description: "Assistance lors d'un contrôle fiscal", duration: '90 min', price: 400, icon: Icons.shield_outlined),
-  ],
-  'Finance': [
-    _ServiceData(name: 'Bilan patrimonial', description: 'Analyse de votre patrimoine et objectifs financiers', duration: '45 min', price: 180, icon: Icons.pie_chart_outline_rounded),
-    _ServiceData(name: "Stratégie d'investissement", description: "Plan d'investissement personnalisé selon votre profil", duration: '60 min', price: 300, icon: Icons.trending_up_rounded),
-    _ServiceData(name: 'Planification retraite', description: 'Préparez votre retraite avec un plan sur mesure', duration: '60 min', price: 280, icon: Icons.savings_outlined),
-  ],
-  'Technologie': [
-    _ServiceData(name: 'Audit technique', description: 'Analyse de votre infrastructure et stack technique', duration: '60 min', price: 250, icon: Icons.search_rounded),
-    _ServiceData(name: 'Architecture projet', description: 'Conception architecture logicielle scalable', duration: '90 min', price: 450, icon: Icons.account_tree_outlined),
-    _ServiceData(name: 'Coaching développeur', description: 'Session personnalisée pour monter en compétences', duration: '60 min', price: 300, icon: Icons.code_rounded),
-  ],
-  'Éducation': [
-    _ServiceData(name: "Bilan d'orientation", description: 'Identification de votre profil et filières adaptées', duration: '60 min', price: 90, icon: Icons.school_outlined),
-    _ServiceData(name: 'Préparation concours', description: 'Stratégie et planning pour les grandes écoles', duration: '45 min', price: 120, icon: Icons.emoji_events_outlined),
-    _ServiceData(name: 'Suivi mensuel', description: "Accompagnement régulier tout au long de l'année", duration: '30 min', price: 80, icon: Icons.calendar_month_outlined),
-  ],
-  'Entrepreneuriat': [
-    _ServiceData(name: 'Validation de projet', description: "Analyse de votre idée et plan de validation marché", duration: '45 min', price: 200, icon: Icons.lightbulb_outline_rounded),
-    _ServiceData(name: 'Business Plan', description: 'Rédaction BP complet et investisseur-ready', duration: '90 min', price: 450, icon: Icons.business_center_outlined),
-    _ServiceData(name: 'Pitch Investor', description: 'Préparation pitch deck et simulation investisseurs', duration: '60 min', price: 350, icon: Icons.rocket_launch_outlined),
-  ],
-  'Administration': [
-    _ServiceData(name: 'Démarche administrative', description: 'Assistance pour vos formalités administratives', duration: '30 min', price: 100, icon: Icons.assignment_outlined),
-    _ServiceData(name: "Création d'entreprise", description: 'Accompagnement complet pour créer votre société', duration: '60 min', price: 200, icon: Icons.store_outlined),
-    _ServiceData(name: "Appel d'offres public", description: "Aide à la préparation d'un dossier marchés publics", duration: '90 min', price: 350, icon: Icons.handshake_outlined),
-  ],
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock reviews (shared across all profiles)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const _kReviews = [
-  _ReviewData(
-    reviewer: 'Ahmed Benali',
-    initials: 'AB',
-    reviewerColor: Color(0xFF6366F1),
-    rating: 5,
-    comment: "Très professionnel et à l'écoute. Les explications sont claires et les conseils vraiment utiles. Je recommande vivement !",
-    date: 'Il y a 3 jours',
-  ),
-  _ReviewData(
-    reviewer: 'Fatima Moussaoui',
-    initials: 'FM',
-    reviewerColor: Color(0xFF8B5CF6),
-    rating: 5,
-    comment: "Excellente expérience ! La réponse a été rapide et le suivi très professionnel. Exactement ce dont j'avais besoin.",
-    date: 'Il y a 1 semaine',
-  ),
-  _ReviewData(
-    reviewer: 'Youssef Kadiri',
-    initials: 'YK',
-    reviewerColor: Color(0xFF3B82F6),
-    rating: 4,
-    comment: "Très bonne expertise. Je suis satisfait de la consultation et reviendrai certainement pour un suivi approfondi.",
-    date: 'Il y a 2 semaines',
-  ),
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ExpertProfileScreen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class ExpertProfileScreen extends StatelessWidget {
+class ExpertProfileScreen extends ConsumerWidget {
   final ExpertModel expert;
 
   const ExpertProfileScreen({
@@ -222,15 +53,26 @@ class ExpertProfileScreen extends StatelessWidget {
   int get rate => expert.hourlyRate;
   String get initials => expert.initials;
   Color get color => expert.avatarColor;
-  bool get online => expert.isAvailable;
 
-  String get _bio => expert.bio;
-  List<_ServiceData> get _services => _kServices[expert.specialty] ?? _kDefaultServices;
+  String get _bio => expert.bio.isNotEmpty
+      ? expert.bio
+      : 'Aucune biographie disponible.';
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final size = MediaQuery.sizeOf(context);
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final reviewsAsync = ref.watch(expertReviewsProvider(expert.id));
+    // Live data — polls every 20 s so the online dot stays accurate.
+    final liveExpertAsync = ref.watch(expertLiveProvider(expert.id));
+    final isOnline = liveExpertAsync.maybeWhen(
+      data: (e) => e.isOnline,
+      orElse: () => expert.isOnline, // fallback to navigation snapshot
+    );
+    final isAvailable = liveExpertAsync.maybeWhen(
+      data: (e) => e.isAvailable,
+      orElse: () => expert.isAvailable,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -251,7 +93,7 @@ class ExpertProfileScreen extends StatelessWidget {
                   reviewCount: reviewCount,
                   initials: initials,
                   color: color,
-                  online: online,
+                  online: isOnline,
                 ),
 
                 const SizedBox(height: 4),
@@ -279,19 +121,36 @@ class ExpertProfileScreen extends StatelessWidget {
 
                 const SizedBox(height: 28),
 
-                // ── Services ──────────────────────────────────────────────
+                // ── Tarifs ────────────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const _SectionTitle('Services proposés'),
+                      const _SectionTitle('Tarifs de consultation'),
                       const SizedBox(height: 12),
-                      ..._services.map(
-                        (s) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _ServiceCard(service: s, color: color),
-                        ),
+                      _ConsultationCard(
+                        icon: Icons.chat_outlined,
+                        label: 'Consultation rapide',
+                        duration: '30 min',
+                        price: rate ~/ 2,
+                        color: color,
+                      ),
+                      const SizedBox(height: 10),
+                      _ConsultationCard(
+                        icon: Icons.medical_services_outlined,
+                        label: 'Consultation standard',
+                        duration: '45 min',
+                        price: (rate * 3) ~/ 4,
+                        color: color,
+                      ),
+                      const SizedBox(height: 10),
+                      _ConsultationCard(
+                        icon: Icons.health_and_safety_outlined,
+                        label: 'Consultation complète',
+                        duration: '60 min',
+                        price: rate,
+                        color: color,
                       ),
                     ],
                   ),
@@ -310,11 +169,47 @@ class ExpertProfileScreen extends StatelessWidget {
                         badge: '$reviewCount avis',
                       ),
                       const SizedBox(height: 12),
-                      ..._kReviews.map(
-                        (r) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _ReviewCard(review: r),
+                      reviewsAsync.when(
+                        loading: () => const Center(
+                          child: CircularProgressIndicator(color: AppColors.primary),
                         ),
+                        error: (e, s) => const SizedBox.shrink(),
+                        data: (reviews) => reviews.isEmpty
+                            ? Text(
+                                'Aucun avis pour le moment.',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              )
+                            : Column(
+                                children: reviews.take(3).map((r) {
+                                  final user = r['user'] as Map<String, dynamic>?;
+                                  final name = user?['name'] as String? ?? 'Utilisateur';
+                                  final parts = name.trim().split(' ');
+                                  final initials = parts.length >= 2
+                                      ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+                                      : name.substring(0, 1).toUpperCase();
+                                  final rating = (r['rating'] as num?)?.toInt() ?? 5;
+                                  final comment = r['comment'] as String? ?? '';
+                                  final createdAt = r['created_at'] as String? ?? '';
+                                  final date = createdAt.isNotEmpty
+                                      ? createdAt.substring(0, 10)
+                                      : '';
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: _ReviewCard(
+                                      review: _ReviewData(
+                                        reviewer: name,
+                                        initials: initials,
+                                        reviewerColor: AppColors.primary,
+                                        rating: rating,
+                                        comment: comment,
+                                        date: date,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
                       ),
                     ],
                   ),
@@ -336,7 +231,7 @@ class ExpertProfileScreen extends StatelessWidget {
               initials: initials,
               color: color,
               specialty: specialty,
-              online: online,
+              online: isAvailable,
             ),
           ),
         ],
@@ -655,20 +550,6 @@ class _StatsRow extends StatelessWidget {
           value: '$reviewCount',
           label: 'Avis',
         ),
-        const SizedBox(width: 10),
-        const _StatCard(
-          icon: Icons.work_outline_rounded,
-          iconColor: AppColors.secondary,
-          value: '8 ans',
-          label: 'Expérience',
-        ),
-        const SizedBox(width: 10),
-        const _StatCard(
-          icon: Icons.flash_on_rounded,
-          iconColor: AppColors.accent,
-          value: '< 5 min',
-          label: 'Réponse',
-        ),
       ],
     );
   }
@@ -781,13 +662,23 @@ class _AboutCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Service card
+// Consultation card (rate-based, from real API hourlyRate)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ServiceCard extends StatelessWidget {
-  final _ServiceData service;
+class _ConsultationCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String duration;
+  final int price;
   final Color color;
-  const _ServiceCard({required this.service, required this.color});
+
+  const _ConsultationCard({
+    required this.icon,
+    required this.label,
+    required this.duration,
+    required this.price,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -800,7 +691,6 @@ class _ServiceCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Icon
           Container(
             width: 46,
             height: 46,
@@ -809,38 +699,22 @@ class _ServiceCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: color.withAlpha(55)),
             ),
-            child: Icon(service.icon, color: color, size: 22),
+            child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(width: 14),
-          // Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  service.name,
-                  style: AppTextStyles.titleSmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  service.description,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  label,
+                  style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    // Duration chip
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceElevated,
                         borderRadius: BorderRadius.circular(6),
@@ -849,22 +723,15 @@ class _ServiceCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            Icons.schedule_outlined,
-                            size: 11,
-                            color: AppColors.textTertiary,
-                          ),
+                          const Icon(Icons.schedule_outlined, size: 11, color: AppColors.textTertiary),
                           const SizedBox(width: 4),
-                          Text(
-                            service.duration,
-                            style: AppTextStyles.caption,
-                          ),
+                          Text(duration, style: AppTextStyles.caption),
                         ],
                       ),
                     ),
                     const Spacer(),
                     Text(
-                      '${service.price} MAD',
+                      '$price MAD',
                       style: AppTextStyles.labelMedium.copyWith(
                         color: AppColors.primaryLight,
                         fontWeight: FontWeight.w700,

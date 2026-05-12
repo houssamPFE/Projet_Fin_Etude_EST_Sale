@@ -17,11 +17,22 @@ class ConversationListController extends Controller
      */
     public function __invoke(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user     = $request->user();
+        $isExpert = $user->role->value === 'expert';
+
+        // Unread = messages from the OTHER party that haven't been read yet.
+        // Without this filter, the expert's own sent messages (read_at = null) would
+        // incorrectly inflate the badge count.
+        $unreadSenderTypes = $isExpert ? ['user'] : ['expert', 'ai'];
 
         $query = Conversation::forUser($user)
             ->with(['user', 'category', 'expert.user', 'lastMessage'])
-            ->withCount(['messages', 'unreadMessages']);
+            ->withCount([
+                'messages',
+                // Use the relationship name alias so ConversationResource::whenCounted('unreadMessages') works
+                'unreadMessages' => fn ($q) => $q
+                    ->whereIn('sender_type', $unreadSenderTypes),
+            ]);
 
         // Filter by status
         if ($request->filled('status')) {

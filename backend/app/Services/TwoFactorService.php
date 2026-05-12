@@ -89,7 +89,7 @@ class TwoFactorService
     /**
      * Generate an otpauth:// URL for QR code scanning.
      */
-    private function getQrCodeUrl(User $user, string $secret): string
+    public function getQrCodeUrl(User $user, string $secret): string
     {
         return $this->google2fa->getQRCodeUrl(
             config('app.name', 'Nexora'),

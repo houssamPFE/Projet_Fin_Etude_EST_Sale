@@ -43,4 +43,16 @@ class ConversationService {
       data: {'content': content},
     );
   }
+
+  /// Permanently delete a conversation — syncs with web immediately.
+  /// DELETE /api/v1/conversations/{id}
+  Future<void> deleteConversation(int conversationId) async {
+    await _dio.delete('/conversations/$conversationId');
+  }
+
+  /// Archive (close) a conversation so it disappears from both mobile and web.
+  /// PUT /api/v1/conversations/{id}/close
+  Future<void> archiveConversation(int conversationId) async {
+    await _dio.put('/conversations/$conversationId/close');
+  }
 }

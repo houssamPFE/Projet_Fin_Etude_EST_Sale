@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ExpertStatus;
+use App\Enums\Role;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -80,7 +81,10 @@ class Expert extends Model
 
     public function scopeValidated($query)
     {
-        return $query->where('status', ExpertStatus::Validated->value);
+        return $query->where('status', ExpertStatus::Validated->value)
+                     ->whereHas('user', function ($q) {
+                         $q->where('role', Role::Expert->value);
+                     });
     }
 
     public function scopeAvailable($query)

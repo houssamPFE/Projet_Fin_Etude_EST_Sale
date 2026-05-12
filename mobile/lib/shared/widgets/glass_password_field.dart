@@ -55,9 +55,14 @@ class _GlassPasswordFieldState extends State<GlassPasswordField> {
         boxShadow: _focused
             ? [
                 const BoxShadow(
-                  color: Color(0x506366F1),
-                  blurRadius: 18,
-                  spreadRadius: -4,
+                  color: Color(0x706366F1),
+                  blurRadius: 28,
+                  spreadRadius: -3,
+                ),
+                const BoxShadow(
+                  color: Color(0x306366F1),
+                  blurRadius: 48,
+                  spreadRadius: -8,
                 ),
               ]
             : [],
@@ -88,7 +93,7 @@ class _GlassPasswordFieldState extends State<GlassPasswordField> {
             ),
           ),
           fillColor: _focused
-              ? const Color(0x1A6366F1)
+              ? const Color(0x256366F1)
               : const Color(0x0F6366F1),
           filled: true,
           border: OutlineInputBorder(

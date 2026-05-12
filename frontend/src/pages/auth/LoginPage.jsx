@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import api from '../../lib/api';
 import useAuthStore from '../../stores/authStore';
@@ -17,6 +18,8 @@ export default function LoginPage() {
 
   // 2FA state
   const [show2fa, setShow2fa] = useState(false);
+  const [is2faSetup, setIs2faSetup] = useState(false);
+  const [setupData, setSetupData] = useState(null);
   const [twoFactorToken, setTwoFactorToken] = useState('');
   const [otpCode, setOtpCode] = useState('');
 
@@ -34,6 +37,10 @@ export default function LoginPage() {
     if (result.requires2fa) {
       setTwoFactorToken(result.token);
       setShow2fa(true);
+      if (result.requires2faSetup) {
+        setIs2faSetup(true);
+        setSetupData(result.setupData);
+      }
       setLoading(false);
       return;
     }
@@ -86,7 +93,28 @@ export default function LoginPage() {
     return (
       <div className="auth-page">
         <h2 className="auth-title">Vérification 2FA</h2>
-        <p className="auth-subtitle">Entrez le code de votre application d'authentification</p>
+        <p className="auth-subtitle">
+          {is2faSetup
+            ? "L'authentification à deux facteurs est obligatoire pour votre compte."
+            : "Entrez le code de votre application d'authentification"}
+        </p>
+
+        {is2faSetup && setupData && (
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <p style={{ fontSize: '0.875rem', color: '#495057', marginBottom: '1rem' }}>
+              Scannez ce QR Code avec Google Authenticator ou Authy :
+            </p>
+            <div style={{ display: 'inline-block', background: 'white', padding: '0.5rem', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+              <QRCodeSVG value={setupData.qr_code_url} size={160} bgColor="#ffffff" fgColor="#020617" />
+            </div>
+            <p style={{ fontSize: '0.8125rem', color: '#6c757d', marginTop: '0.75rem', fontFamily: 'monospace', letterSpacing: '1px' }}>
+              {setupData.secret}
+            </p>
+            <p style={{ fontSize: '0.8125rem', color: '#495057', marginTop: '1rem', fontWeight: 500 }}>
+              Puis entrez le code à 6 chiffres généré ci-dessous pour confirmer :
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handle2faVerify} className="auth-form">
           <div className="form-group">
@@ -109,7 +137,7 @@ export default function LoginPage() {
           {error && <p className="form-error">{error}</p>}
 
           <button type="submit" className="btn btn-primary btn-lg w-full" disabled={loading}>
-            {loading ? <span className="spinner" /> : 'Vérifier'}
+            {loading ? <span className="spinner" /> : (is2faSetup ? 'Confirmer la configuration' : 'Vérifier')}
           </button>
         </form>
       </div>

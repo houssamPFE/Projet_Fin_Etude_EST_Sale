@@ -2,12 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/token_storage.dart';
 
-// Android emulator → 10.0.2.2 maps to host machine's localhost.
-// Override at runtime: flutter run --dart-define=BASE_URL=http://192.168.x.x:8000/api/v1
-const kBaseUrl = String.fromEnvironment(
-  'BASE_URL',
-  defaultValue: 'http://10.0.2.2:8000/api/v1',
-);
+// Android emulator → 10.0.2.2 maps to host machine's localhost
+const kBaseUrl = 'http://10.0.2.2:8000/api/v1';
 
 /// Rewrites Docker-internal storage hostnames to 10.0.2.2 so the Android
 /// emulator can reach MinIO running on the host machine.
@@ -88,8 +84,8 @@ class _RefreshInterceptor extends QueuedInterceptor {
   Dio _makeBaseDio() => Dio(
         BaseOptions(
           baseUrl: kBaseUrl,
-          connectTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 15),
+          connectTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 60),
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
@@ -107,8 +103,8 @@ final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(
     BaseOptions(
       baseUrl: kBaseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 15),
+      connectTimeout: const Duration(seconds: 60),
+      receiveTimeout: const Duration(seconds: 60),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',

@@ -8,6 +8,7 @@ export function useExperts(params = {}) {
       const { data } = await api.get('/experts', { params });
       return data;
     },
+    refetchInterval: 20_000, // refresh every 20 s for live online dots
   });
 }
 
@@ -19,6 +20,7 @@ export function useExpert(id) {
       return data.data;
     },
     enabled: !!id,
+    refetchInterval: 20_000, // refresh every 20 s for live online dot on profile
   });
 }
 

@@ -86,9 +86,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 24),
 
-                          const Center(child: NexoraMiniLogo())
+                          const Center(child: _LoginHeroLogo())
                               .animate()
                               .fadeIn(duration: 600.ms)
                               .scale(
@@ -97,19 +97,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 curve: Curves.easeOutBack,
                               ),
 
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 48), // Added spacing below logo to match reference
 
                           const _LoginHeader()
                               .animate()
                               .fadeIn(delay: 150.ms, duration: 500.ms)
-                              .slideY(begin: 0.15, end: 0, curve: Curves.easeOut),
+                              .slideY(
+                                  begin: 0.15,
+                                  end: 0,
+                                  curve: Curves.easeOut),
 
                           const SizedBox(height: 36),
 
                           GlassTextField(
                             controller: _emailController,
-                            label: 'Adresse e-mail',
-                            hint: 'votre@email.com',
+                            label: '', // Removed floating label to match reference
+                            hint: 'Adresse e-mail',
                             prefixIcon: Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
@@ -132,8 +135,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                           GlassPasswordField(
                             controller: _passwordController,
-                            label: 'Mot de passe',
-                            hint: '••••••••',
+                            label: '', // Removed floating label to match reference
+                            hint: 'Mot de passe',
                             visible: _passwordVisible,
                             onToggle: () => setState(
                               () => _passwordVisible = !_passwordVisible,
@@ -158,7 +161,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () => context.push(AppRoutes.forgotPassword),
+                              onPressed: () =>
+                                  context.push(AppRoutes.forgotPassword),
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 4,
@@ -174,22 +178,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                           if (authState.error != null) ...[
                             const SizedBox(height: 16),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 11),
-                              decoration: BoxDecoration(
-                                color: AppColors.error.withAlpha(20),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                    color: AppColors.error.withAlpha(80)),
-                              ),
-                              child: Text(
-                                authState.error!,
-                                style: AppTextStyles.bodySmall
-                                    .copyWith(color: AppColors.error),
-                              ),
-                            ),
+                            _ErrorBanner(message: authState.error!),
                           ],
 
                           const SizedBox(height: 24),
@@ -205,7 +194,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                           const SizedBox(height: 32),
 
-                          const OrDivider().animate().fadeIn(delay: 560.ms),
+                          const OrDivider().animate().fadeIn(delay: 580.ms),
 
                           const SizedBox(height: 20),
 
@@ -215,7 +204,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             onTap: () => _onSocialLogin('google'),
                           )
                               .animate()
-                              .fadeIn(delay: 620.ms)
+                              .fadeIn(delay: 640.ms)
                               .slideY(begin: 0.1, end: 0),
 
                           const SizedBox(height: 12),
@@ -226,7 +215,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             onTap: () => _onSocialLogin('facebook'),
                           )
                               .animate()
-                              .fadeIn(delay: 690.ms)
+                              .fadeIn(delay: 710.ms)
                               .slideY(begin: 0.1, end: 0),
 
                           const SizedBox(height: 44),
@@ -235,7 +224,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             child: _SignupPrompt(
                               onTap: () => context.push(AppRoutes.register),
                             ),
-                          ).animate().fadeIn(delay: 780.ms),
+                          ).animate().fadeIn(delay: 800.ms),
 
                           const SizedBox(height: 16),
                         ],
@@ -253,7 +242,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Screen-specific background — glow positions tuned for login layout
+// Background — vivid ambient orbs
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LoginBackground extends StatelessWidget {
@@ -265,30 +254,39 @@ class _LoginBackground extends StatelessWidget {
     return Stack(
       children: [
         Positioned(
-          top: -size.height * 0.10,
-          left: size.width * 0.05,
+          top: -size.height * 0.08,
+          left: size.width * 0.02,
           child: BlurOrb(
-            width: size.width * 0.9,
-            height: size.height * 0.48,
-            color: const Color(0x3A8B5CF6),
+            width: size.width * 0.95,
+            height: size.height * 0.50,
+            color: const Color(0x5A8B5CF6),
           ),
         ),
         Positioned(
-          top: size.height * 0.30,
-          right: -size.width * 0.3,
+          top: -size.height * 0.04,
+          right: -size.width * 0.2,
           child: BlurOrb(
-            width: size.width * 0.6,
-            height: size.width * 0.6,
-            color: const Color(0x1E3B82F6),
+            width: size.width * 0.55,
+            height: size.width * 0.55,
+            color: const Color(0x456366F1),
           ),
         ),
         Positioned(
-          bottom: -size.height * 0.06,
-          left: size.width * 0.1,
+          top: size.height * 0.28,
+          right: -size.width * 0.25,
           child: BlurOrb(
-            width: size.width * 0.8,
-            height: size.height * 0.26,
-            color: const Color(0x1A6366F1),
+            width: size.width * 0.55,
+            height: size.width * 0.55,
+            color: const Color(0x306366F1),
+          ),
+        ),
+        Positioned(
+          bottom: -size.height * 0.05,
+          left: size.width * 0.08,
+          child: BlurOrb(
+            width: size.width * 0.85,
+            height: size.height * 0.28,
+            color: const Color(0x2E6366F1),
           ),
         ),
       ],
@@ -297,7 +295,7 @@ class _LoginBackground extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Screen-specific header text
+// Header
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LoginHeader extends StatelessWidget {
@@ -311,16 +309,55 @@ class _LoginHeader extends StatelessWidget {
         Text('Bon retour !', style: AppTextStyles.displaySmall),
         const SizedBox(height: 10),
         Text(
-          'Connectez-vous pour accéder à vos experts et à l\'IA.',
-          style: AppTextStyles.bodyLarge,
+          'Connectez-vous pour accéder\nà vos experts et à l\'IA.',
+          style: AppTextStyles.bodyLarge.copyWith(
+            color: AppColors.textSecondary,
+            height: 1.55,
+          ),
         ),
       ],
     );
   }
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Sign-up prompt — links to RegisterScreen
+// Error banner
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  const _ErrorBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.error.withAlpha(22),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.error.withAlpha(80)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline_rounded,
+              size: 16, color: AppColors.error.withAlpha(200)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sign-up prompt
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SignupPrompt extends StatelessWidget {
@@ -346,6 +383,90 @@ class _SignupPrompt extends StatelessWidget {
               color: AppColors.primary,
               fontWeight: FontWeight.w600,
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Custom Login Screen Hero Logo
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LoginHeroLogo extends StatelessWidget {
+  const _LoginHeroLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            // Outer ambient ring
+            Container(
+              width: 140,
+              height: 140,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    Color(0x458B5CF6),
+                    Color(0x186366F1),
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, 0.55, 1.0],
+                ),
+              ),
+            ),
+            // Core glow
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6366F1).withAlpha(110),
+                    blurRadius: 28,
+                    spreadRadius: 6,
+                  ),
+                ],
+              ),
+            ),
+            const NexoraImageIcon(size: 80), // Larger N icon to match reference
+          ],
+        ),
+        const SizedBox(height: 16),
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [
+              Color(0xFFFFFFFF),
+              Color(0xFFCDD0FF),
+              Color(0xFFFFFFFF),
+            ],
+            stops: [0.0, 0.5, 1.0],
+          ).createShader(bounds),
+          blendMode: BlendMode.srcIn,
+          child: const Text(
+            'N E X O R A',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 8,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Connect to Expertise',
+          style: AppTextStyles.caption.copyWith(
+            color: const Color(0xFF818CF8),
+            letterSpacing: 1.5,
+            fontSize: 13,
           ),
         ),
       ],

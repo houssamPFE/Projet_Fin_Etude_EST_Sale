@@ -15,9 +15,11 @@ import '../../features/experts/screens/expert_profile_screen.dart';
 import '../../features/home/models/expert_model.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/profile/screens/security_screen.dart';
-import '../../features/profile/screens/help_screen.dart';
-import '../../features/profile/screens/about_screen.dart';
 import '../../features/chat/screens/chat_screen.dart';
+import '../../features/chat/screens/conversations_screen.dart';
+import '../../features/chat/screens/ai_triage_screen.dart';
+import '../../features/home/screens/notifications_screen.dart';
+import '../../shared/widgets/main_layout.dart';
 import '../services/token_storage.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -25,27 +27,33 @@ import '../services/token_storage.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 abstract class AppRoutes {
-  static const welcome = '/';
-  static const login = '/login';
-  static const register = '/register';
-  static const otp = '/otp';
+  static const welcome        = '/';
+  static const login          = '/login';
+  static const register       = '/register';
+  static const otp            = '/otp';
   static const forgotPassword = '/forgot-password';
-  static const resetPassword = '/reset-password';
-  static const twoFactor = '/two-factor';
-  static const home = '/home';
+  static const resetPassword  = '/reset-password';
+  static const twoFactor      = '/two-factor';
+  static const home           = '/home';
+  static const notifications  = '/notifications';
+  static const aiTriage       = '/ai-triage';
+  static const messages       = '/messages';
   static const categoriesExplore = '/categories-explore';
-  static const experts = '/experts';
-  static const expertProfile = '/expert-profile';
-  static const profile = '/profile';
-  static const security = '/security';
-  static const help = '/help';
-  static const about = '/about';
-  static const chat = '/chat';
+  static const experts        = '/experts';
+  static const expertProfile  = '/expert-profile';
+  static const profile        = '/profile';
+  static const security       = '/security';
+  static const chat           = '/chat';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Auth change notifier — call notifyAuthChanged() after login / logout
-// to trigger the router redirect guard.
+// Global navigator key — used by FCMService for out-of-context navigation
+// ─────────────────────────────────────────────────────────────────────────────
+
+final navigatorKey = GlobalKey<NavigatorState>();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth change notifier
 // ─────────────────────────────────────────────────────────────────────────────
 
 final _authChangeNotifier = ValueNotifier<int>(0);
@@ -74,6 +82,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final storage = ref.read(tokenStorageProvider);
 
   return GoRouter(
+    navigatorKey: navigatorKey,
     initialLocation: AppRoutes.welcome,
     refreshListenable: _authChangeNotifier,
     debugLogDiagnostics: false,
@@ -92,7 +101,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.welcome,
         builder: (_, _) => const WelcomeScreen(),
       ),
-      GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginScreen()),
+      GoRoute(
+        path: AppRoutes.login,
+        builder: (_, _) => const LoginScreen(),
+      ),
       GoRoute(
         path: AppRoutes.register,
         builder: (_, _) => const RegisterScreen(),
@@ -122,44 +134,131 @@ final routerProvider = Provider<GoRouter>((ref) {
           return TwoFactorScreen(twoFactorToken: token);
         },
       ),
-      GoRoute(path: AppRoutes.home, builder: (_, _) => const HomeScreen()),
+
+      // ─────────────────────────────────────────────────────────────────────
+      // Stateful Navigation Shell (Bottom Navigation Bar)
+      // ─────────────────────────────────────────────────────────────────────
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return MainLayout(navigationShell: navigationShell);
+        },
+        branches: [
+          // Branch 0: Home
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                builder: (_, _) => const HomeScreen(),
+              ),
+            ],
+          ),
+          // Branch 1: Experts
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.experts,
+                builder: (_, _) => const ExpertsScreen(),
+              ),
+            ],
+          ),
+          // Branch 2: Messages
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.messages,
+                builder: (_, _) => const ConversationsScreen(),
+              ),
+            ],
+          ),
+          // Branch 3: Profile
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.profile,
+                builder: (_, _) => const ProfileScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
+      // AI Triage — pushed above shell (no bottom nav)
+      GoRoute(
+        path: AppRoutes.aiTriage,
+        builder: (_, _) => const AiTriageScreen(),
+      ),
+      // Notifications — pushed above shell, but keeps its own bottom nav
+      GoRoute(
+        path: AppRoutes.notifications,
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const NotificationsScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(
+              opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.04),
+                  end: Offset.zero,
+                ).animate(CurveTween(curve: Curves.easeOutQuart).animate(animation)),
+                child: child,
+              ),
+            );
+          },
+        ),
+      ),
+
+      // ─────────────────────────────────────────────────────────────────────
+      // Inner application routes (no bottom nav bar)
+      // ─────────────────────────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.categoriesExplore,
         builder: (_, _) => const CategoriesExploreScreen(),
       ),
       GoRoute(
-        path: AppRoutes.experts,
-        builder: (_, _) => const ExpertsScreen(),
-      ),
-      GoRoute(
         path: AppRoutes.expertProfile,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final expert = state.extra! as ExpertModel;
-          return ExpertProfileScreen(expert: expert);
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: ExpertProfileScreen(expert: expert),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
+                child: child,
+              );
+            },
+          );
         },
-      ),
-      GoRoute(
-        path: AppRoutes.profile,
-        builder: (_, _) => const ProfileScreen(),
       ),
       GoRoute(
         path: AppRoutes.security,
         builder: (_, _) => const SecurityScreen(),
       ),
-      GoRoute(path: AppRoutes.help, builder: (_, _) => const HelpScreen()),
-      GoRoute(path: AppRoutes.about, builder: (_, _) => const AboutScreen()),
       GoRoute(
         path: AppRoutes.chat,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final args = state.extra! as Map<String, dynamic>;
-          return ChatScreen(
-            name: args['name'] as String,
-            initials: args['initials'] as String,
-            color: args['color'] as Color,
-            subtitle: args['subtitle'] as String,
-            online: args['online'] as bool? ?? true,
-            isAi: args['isAi'] as bool? ?? false,
-            conversationId: args['conversationId'] as int?,
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: ChatScreen(
+              name:           args['name']           as String,
+              initials:       args['initials']       as String,
+              color:          args['color']          as Color,
+              subtitle:       args['subtitle']       as String,
+              online:         args['online']         as bool? ?? true,
+              isAi:           args['isAi']           as bool? ?? false,
+              conversationId: args['conversationId'] as int?,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              const curve = Curves.easeOutQuart;
+              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
           );
         },
       ),

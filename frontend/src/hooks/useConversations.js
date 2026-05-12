@@ -13,7 +13,7 @@ export function useConversations(params = {}) {
   });
 }
 
-export function useConversation(id) {
+export function useConversation(id, { refetchInterval } = {}) {
   return useQuery({
     queryKey: ['conversations', String(id)],
     queryFn: async () => {
@@ -21,6 +21,7 @@ export function useConversation(id) {
       return data.data;
     },
     enabled: !!id,
+    refetchInterval: refetchInterval ?? false,
   });
 }
 

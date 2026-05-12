@@ -38,8 +38,13 @@ class ExpertService
                 $this->uploadDocument($expert, $doc['file'], $doc['type']);
             }
 
-            // Update user role to expert
-            $user->update(['role' => Role::Expert]);
+            // Notify admins
+            $admins = User::where('role', Role::Admin)->get();
+            foreach ($admins as $admin) {
+                $this->notificationService->newExpertApplication($admin, $user);
+            }
+
+            // Role upgrade is deferred until an admin validates the application.
 
             return $expert->load(['category', 'documents', 'user']);
         });
@@ -110,7 +115,9 @@ class ExpertService
             'validated_by' => $admin->id,
         ]);
 
-        $expert->user->update(['role' => 'expert']);
+        $expert->documents()->update(['verified' => true]);
+
+        $expert->user->update(['role' => Role::Expert]);
 
         $this->notificationService->expertValidated($expert->user);
 
@@ -127,6 +134,8 @@ class ExpertService
             'validated_at' => now(),
             'validated_by' => $admin->id,
         ]);
+
+        $expert->user->update(['role' => Role::User]);
 
         $this->notificationService->expertRejected($expert->user, $reason);
 

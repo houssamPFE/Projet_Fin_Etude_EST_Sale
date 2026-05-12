@@ -32,8 +32,11 @@ const useAuthStore = create((set) => ({
       const { data } = await api.post('/auth/login', { email, password });
 
       // Check if 2FA is required
+      if (data.requires_2fa_setup) {
+        return { requires2fa: true, requires2faSetup: true, token: data.two_factor_token, setupData: data.setup_data };
+      }
       if (data.requires_2fa) {
-        return { requires2fa: true, token: data.two_factor_token };
+        return { requires2fa: true, requires2faSetup: false, token: data.two_factor_token };
       }
 
       localStorage.setItem('access_token', data.data.token.access_token);

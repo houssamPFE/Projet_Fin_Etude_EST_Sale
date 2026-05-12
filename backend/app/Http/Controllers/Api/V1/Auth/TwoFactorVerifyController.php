@@ -54,6 +54,11 @@ class TwoFactorVerifyController extends Controller
             ], 422);
         }
 
+        // If this is their first time verifying, confirm the setup!
+        if (! $user->two_factor_confirmed_at) {
+            $user->update(['two_factor_confirmed_at' => now()]);
+        }
+
         // Revoke the 2FA token and issue full tokens
         $accessToken->delete();
         $tokens = $this->authService->createTokenPair($user);
