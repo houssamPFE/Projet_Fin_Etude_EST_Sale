@@ -45,8 +45,9 @@ const useAuthStore = create((set) => ({
       return { success: true, user: data.data.user };
     } catch (err) {
       const message = err.response?.data?.message || 'Erreur de connexion.';
-      set({ error: message });
-      return { success: false, error: message };
+      const maintenance = err.response?.data?.maintenance === true;
+      set({ error: maintenance ? null : message });
+      return { success: false, error: message, maintenance };
     }
   },
 

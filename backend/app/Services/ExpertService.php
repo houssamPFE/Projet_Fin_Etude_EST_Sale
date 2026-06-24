@@ -28,8 +28,8 @@ class ExpertService
                 'user_id'        => $user->id,
                 'category_id'    => $data['category_id'],
                 'bio'            => $data['bio'] ?? null,
+                'city'           => $data['city'] ?? null,
                 'certifications' => $data['certifications'] ?? null,
-                'hourly_rate'    => $data['hourly_rate'] ?? null,
                 'status'         => ExpertStatus::Pending,
             ]);
 
@@ -84,8 +84,8 @@ class ExpertService
     {
         $expert->update(array_filter([
             'bio'            => $data['bio'] ?? null,
+            'city'           => $data['city'] ?? null,
             'certifications' => $data['certifications'] ?? null,
-            'hourly_rate'    => $data['hourly_rate'] ?? null,
             'category_id'    => $data['category_id'] ?? null,
         ], fn ($value) => $value !== null));
 
@@ -110,9 +110,10 @@ class ExpertService
     public function validate(Expert $expert, User $admin): Expert
     {
         $expert->update([
-            'status'       => ExpertStatus::Validated,
-            'validated_at' => now(),
-            'validated_by' => $admin->id,
+            'status'           => ExpertStatus::Validated,
+            'validated_at'     => now(),
+            'validated_by'     => $admin->id,
+            'rejection_reason' => null,
         ]);
 
         $expert->documents()->update(['verified' => true]);
@@ -130,9 +131,10 @@ class ExpertService
     public function reject(Expert $expert, User $admin, ?string $reason = null): Expert
     {
         $expert->update([
-            'status'       => ExpertStatus::Rejected,
-            'validated_at' => now(),
-            'validated_by' => $admin->id,
+            'status'           => ExpertStatus::Rejected,
+            'validated_at'     => now(),
+            'validated_by'     => $admin->id,
+            'rejection_reason' => $reason,
         ]);
 
         $expert->user->update(['role' => Role::User]);

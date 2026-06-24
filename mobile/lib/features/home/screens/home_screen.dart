@@ -1,27 +1,33 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/network/dio_client.dart' show fixStorageUrl;
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/theme_provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../auth/providers/current_user_provider.dart';
 import '../models/expert_model.dart';
 import '../providers/home_providers.dart';
+import '../../chat/providers/chat_provider.dart' show aiChatProvider;
 import '../../chat/providers/conversations_provider.dart';
 import '../providers/notifications_provider.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
+    // Watch themeProvider so HomeScreen rebuilds instantly on theme changes
+    ref.watch(themeProvider);
     final size = MediaQuery.sizeOf(context);
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -37,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   // ── Header ─────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: const _HomeHeader(),
+                    child: _HomeHeader(),
                   ).animate().fadeIn(duration: 500.ms),
 
                   const SizedBox(height: 20),
@@ -45,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   // ── Hero AI Card ───────────────────────────────
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: const _AiHeroCard(),
+                    child: _AiHeroCard(),
                   ).animate().fadeIn(delay: 80.ms, duration: 600.ms)
                       .slideY(begin: 0.05, end: 0),
 
@@ -54,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   // ── Quick Actions (single row of 4) ────────────
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: const _QuickActionsRow(),
+                    child: _QuickActionsRow(),
                   ).animate().fadeIn(delay: 180.ms),
 
                   const SizedBox(height: 28),
@@ -70,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 14),
 
-                  const _ExpertRow().animate().fadeIn(delay: 330.ms),
+                  _ExpertRow().animate().fadeIn(delay: 330.ms),
 
                   const SizedBox(height: 28),
 
@@ -88,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: const _ConsultationList(),
+                    child: _ConsultationList(),
                   ).animate().fadeIn(delay: 450.ms),
                 ],
               ),
@@ -108,23 +114,38 @@ class _HomeBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final orb1Color = isDark ? const Color(0x228B5CF6) : const Color(0x1A10B981);
+    final orb2Color = isDark ? const Color(0x146366F1) : const Color(0x1200A566);
+    final orb3Color = isDark ? const Color(0x103B82F6) : const Color(0x12059669);
+
     return Stack(
       children: [
+        // Top-left purple/lavender gradient glow (matching experts page)
+        Positioned(
+          top: -size.height * 0.1,
+          left: -size.width * 0.2,
+          child: BlurOrb(
+            width: size.width * 0.75,
+            height: size.height * 0.4,
+            color: const Color(0x328B5CF6),
+          ),
+        ),
         // Orbs
         Positioned(
           top: -size.height * 0.06,
           right: -size.width * 0.15,
-          child: BlurOrb(width: size.width * 0.65, height: size.height * 0.28, color: const Color(0x228B5CF6)),
+          child: BlurOrb(width: size.width * 0.65, height: size.height * 0.28, color: orb1Color),
         ),
         Positioned(
           top: size.height * 0.30,
           left: -size.width * 0.25,
-          child: BlurOrb(width: size.width * 0.50, height: size.width * 0.50, color: const Color(0x146366F1)),
+          child: BlurOrb(width: size.width * 0.50, height: size.width * 0.50, color: orb2Color),
         ),
         Positioned(
           bottom: -size.height * 0.04,
           right: size.width * 0.10,
-          child: BlurOrb(width: size.width * 0.50, height: size.height * 0.18, color: const Color(0x103B82F6)),
+          child: BlurOrb(width: size.width * 0.50, height: size.height * 0.18, color: orb3Color),
         ),
         // Subtle particle dots
         ...List.generate(20, (i) {
@@ -138,7 +159,7 @@ class _HomeBackground extends StatelessWidget {
               width: s, height: s,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withAlpha(a),
+                color: (isDark ? Colors.white : AppColors.primary).withAlpha(a),
               ),
             ),
           );
@@ -186,10 +207,10 @@ class _HomeHeader extends ConsumerWidget {
           children: [
             Text(
               '${_timeGreeting()}, $firstName',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
-                color: Colors.white,
+                color: AppColors.textPrimary,
                 height: 1.2,
               ),
             ),
@@ -198,9 +219,9 @@ class _HomeHeader extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Comment puis-je vous aider aujourd\'hui ?',
-          style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8), height: 1.4),
+          style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
         ),
       ],
     );
@@ -257,9 +278,14 @@ class _AnimatedSparkleState extends State<_AnimatedSparkle>
         child: Transform.rotate(
           angle: _rotation.value,
           child: ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [Color(0xFF6366F1), Color(0xFFA78BFA), Color(0xFF38BDF8)],
-            ).createShader(bounds),
+            shaderCallback: (bounds) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              return LinearGradient(
+                colors: isDark
+                    ? const [Color(0xFF6366F1), Color(0xFFA78BFA), Color(0xFF38BDF8)]
+                    : const [Color(0xFF00A566), Color(0xFF10B981), Color(0xFF34D399)],
+              ).createShader(bounds);
+            },
             child: const Icon(Icons.auto_awesome, color: Colors.white, size: 22),
           ),
         ),
@@ -284,11 +310,11 @@ class _NotificationBell extends StatelessWidget {
             width: 40, height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withAlpha(8),
-              border: Border.all(color: Colors.white.withAlpha(15)),
+              color: AppColors.surface,
+              border: Border.all(color: AppColors.border),
             ),
-            child: const Icon(Icons.notifications_outlined,
-                color: Color(0xFFCBD5E1), size: 20),
+            child: Icon(Icons.notifications_outlined,
+                color: AppColors.textSecondary, size: 20),
           ),
           if (unreadCount > 0)
             Positioned(
@@ -435,6 +461,9 @@ class _AiHeroCardState extends State<_AiHeroCard> {
             child: Row(
               children: List.generate(_heroSlides.length, (i) {
                 final active = i == _current;
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                final activeColor = isDark ? _heroSlides[_current].accentColor : AppColors.primary;
+                final inactiveColor = isDark ? Colors.white.withAlpha(30) : Colors.black.withAlpha(45);
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 350),
                   curve: Curves.easeInOut,
@@ -443,9 +472,7 @@ class _AiHeroCardState extends State<_AiHeroCard> {
                   margin: const EdgeInsets.only(right: 5),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(3),
-                    color: active
-                        ? _heroSlides[_current].accentColor
-                        : Colors.white.withAlpha(30),
+                    color: active ? activeColor : inactiveColor,
                   ),
                 );
               }),
@@ -457,161 +484,171 @@ class _AiHeroCardState extends State<_AiHeroCard> {
   }
 
   Widget _buildSlide(_SlideData s) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: s.gradientColors,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: s.accentColor.withAlpha(50)),
-        boxShadow: [
-          BoxShadow(
-            color: s.accentColor.withAlpha(25),
-            blurRadius: 30,
-            spreadRadius: -6,
-            offset: const Offset(0, 10),
+    return Builder(
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final accent = isDark ? s.accentColor : AppColors.primary;
+        final second = isDark ? s.secondColor : const Color(0xFF10B981);
+        final borderCol = isDark ? s.accentColor : AppColors.border;
+        final shadowCol = isDark ? s.accentColor : AppColors.primary;
+
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: s.gradientColors,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: borderCol.withAlpha(50)),
+            boxShadow: [
+              BoxShadow(
+                color: shadowCol.withAlpha(25),
+                blurRadius: 30,
+                spreadRadius: -6,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            // Background glow
-            Positioned(
-              top: -20, right: -30,
-              child: Container(
-                width: 200, height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      s.accentColor.withAlpha(35),
-                      s.secondColor.withAlpha(12),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.5, 1.0],
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              children: [
+                // Background glow
+                Positioned(
+                  top: -20, right: -30,
+                  child: Container(
+                    width: 200, height: 200,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          accent.withAlpha(35),
+                          second.withAlpha(12),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.5, 1.0],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 22, 12, 42),
-              child: Row(
-                children: [
-                  // Text column
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          s.title,
-                          style: const TextStyle(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            height: 1.3,
-                          ),
-                        ),
-                        ShaderMask(
-                          shaderCallback: (b) => LinearGradient(
-                            colors: [s.accentColor, s.secondColor],
-                          ).createShader(b),
-                          blendMode: BlendMode.srcIn,
-                          child: Text(
-                            s.highlight,
-                            style: const TextStyle(
-                              fontSize: 21,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              height: 1.3,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 22, 12, 42),
+                  child: Row(
+                    children: [
+                      // Text column
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              s.title,
+                              style: const TextStyle(
+                                fontSize: 21,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                height: 1.3,
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          s.subtitle,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFFCBD5E1),
-                            height: 1.55,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Orb / icon
-                  SizedBox(
-                    width: 110, height: 110,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Container(
-                          width: 110, height: 110,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: s.accentColor.withAlpha(30), blurRadius: 40, spreadRadius: 4),
-                              BoxShadow(color: s.secondColor.withAlpha(15), blurRadius: 60, spreadRadius: 10),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          width: 90, height: 90,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: s.accentColor.withAlpha(25), width: 1),
-                          ),
-                        ),
-                        Container(
-                          width: 72, height: 72,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: s.accentColor.withAlpha(40), width: 1.5),
-                            gradient: RadialGradient(
-                              colors: [s.accentColor.withAlpha(20), Colors.transparent],
+                            ShaderMask(
+                              shaderCallback: (b) => LinearGradient(
+                                colors: [accent, second],
+                              ).createShader(b),
+                              blendMode: BlendMode.srcIn,
+                              child: Text(
+                                s.highlight,
+                                style: const TextStyle(
+                                  fontSize: 21,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  height: 1.3,
+                                ),
+                              ),
                             ),
-                            boxShadow: [
-                              BoxShadow(color: s.accentColor.withAlpha(20), blurRadius: 16, spreadRadius: 2),
-                            ],
-                          ),
+                            const SizedBox(height: 12),
+                            Text(
+                              s.subtitle,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFFCBD5E1),
+                                height: 1.55,
+                              ),
+                            ),
+                          ],
                         ),
-                        if (s.useLogoOrb)
-                          const NexoraImageIcon(size: 52)
-                        else
-                          ShaderMask(
-                            shaderCallback: (b) => LinearGradient(
-                              colors: [s.accentColor, s.secondColor],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ).createShader(b),
-                            blendMode: BlendMode.srcIn,
-                            child: Icon(s.icon, size: 44, color: Colors.white),
-                          ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Orb / icon
+                      SizedBox(
+                        width: 110, height: 110,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 110, height: 110,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(color: accent.withAlpha(30), blurRadius: 40, spreadRadius: 4),
+                                  BoxShadow(color: second.withAlpha(15), blurRadius: 60, spreadRadius: 10),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              width: 90, height: 90,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: accent.withAlpha(25), width: 1),
+                              ),
+                            ),
+                            Container(
+                              width: 72, height: 72,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: accent.withAlpha(40), width: 1.5),
+                                gradient: RadialGradient(
+                                  colors: [accent.withAlpha(20), Colors.transparent],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(color: accent.withAlpha(20), blurRadius: 16, spreadRadius: 2),
+                                ],
+                              ),
+                            ),
+                            if (s.useLogoOrb)
+                              const NexoraImageIcon(size: 52)
+                            else
+                              ShaderMask(
+                                shaderCallback: (b) => LinearGradient(
+                                  colors: [accent, second],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ).createShader(b),
+                                blendMode: BlendMode.srcIn,
+                                child: Icon(s.icon, size: 44, color: Colors.white),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      }
     );
   }
 }
 
 // ─── Quick Actions Row ───────────────────────────────────────────────────────
 
-class _QuickActionsRow extends StatelessWidget {
+class _QuickActionsRow extends ConsumerWidget {
   const _QuickActionsRow();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       children: [
         Expanded(child: _QuickAction(
@@ -619,45 +656,32 @@ class _QuickActionsRow extends StatelessWidget {
           label: 'Assistant IA',
           sub: '24h/24',
           color: const Color(0xFF6366F1),
-          onTap: () => context.push(AppRoutes.chat, extra: {
-            'name': 'IA Nexora', 'initials': 'IA',
-            'color': const Color(0xFF6366F1),
-            'subtitle': 'Intelligence Artificielle',
-            'online': true, 'isAi': true,
-          }),
+          onTap: () {
+            // Always start a fresh conversation from this button.
+            ref.read(aiChatProvider.notifier).reset();
+            context.push(AppRoutes.chat, extra: {
+              'name': 'IA Nexora', 'initials': 'IA',
+              'color': const Color(0xFF6366F1),
+              'subtitle': 'Intelligence Artificielle',
+              'online': true, 'isAi': true,
+            });
+          },
         )),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(child: _QuickAction(
           icon: Icons.people_rounded,
-          label: 'Experts',
-          sub: 'à portée de main',
+          label: 'Médecins',
+          sub: 'Voir les experts',
           color: const Color(0xFF8B5CF6),
           onTap: () => context.go(AppRoutes.experts),
         )),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(child: _QuickAction(
           icon: Icons.grid_view_rounded,
-          label: 'Catégories',
+          label: 'Spécialités',
           sub: 'Parcourir',
           color: const Color(0xFF3B82F6),
           onTap: () => context.push(AppRoutes.categoriesExplore),
-        )),
-        const SizedBox(width: 10),
-        Expanded(child: _QuickAction(
-          icon: Icons.calendar_month_rounded,
-          label: 'Prendre RDV',
-          sub: 'en ligne',
-          color: const Color(0xFF06B6D4),
-          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Bientôt disponible'),
-              backgroundColor: const Color(0xFF1A1F35),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              duration: const Duration(seconds: 2),
-            ),
-          ),
         )),
       ],
     );
@@ -674,6 +698,17 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = isDark
+        ? color
+        : (color == const Color(0xFF6366F1)
+            ? AppColors.primary
+            : (color == const Color(0xFF8B5CF6)
+                ? AppColors.secondary
+                : (color == const Color(0xFF3B82F6)
+                    ? AppColors.accent
+                    : const Color(0xFF0D9488))));
+
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -681,17 +716,29 @@ class _QuickAction extends StatelessWidget {
           Container(
             width: 60, height: 60,
             decoration: BoxDecoration(
-              color: color.withAlpha(15),
+              color: activeColor.withAlpha(15),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: color.withAlpha(25)),
-              boxShadow: [BoxShadow(color: color.withAlpha(10), blurRadius: 12, spreadRadius: -2)],
+              border: Border.all(color: activeColor.withAlpha(25)),
+              boxShadow: [BoxShadow(color: activeColor.withAlpha(10), blurRadius: 12, spreadRadius: -2)],
             ),
-            child: Icon(icon, color: color, size: 26),
+            child: Icon(icon, color: activeColor, size: 26),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           const SizedBox(height: 2),
-          Text(sub, style: const TextStyle(fontSize: 9, color: Color(0xFF64748B)), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(
+            sub,
+            style: TextStyle(fontSize: 9, color: AppColors.textSecondary),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
@@ -708,18 +755,21 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final seeAllColor = isDark ? const Color(0xFF818CF8) : AppColors.primary;
+
     return Row(
       children: [
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+        Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
         const Spacer(),
         GestureDetector(
           onTap: onSeeAll,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(seeAllText, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF818CF8))),
+              Text(seeAllText, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: seeAllColor)),
               const SizedBox(width: 4),
-              const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Color(0xFF818CF8)),
+              Icon(Icons.arrow_forward_ios_rounded, size: 12, color: seeAllColor),
             ],
           ),
         ),
@@ -790,15 +840,15 @@ class _ExpertCard extends StatelessWidget {
         width: 148,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFF111631),
+          color: AppColors.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withAlpha(8)),
+          border: Border.all(color: AppColors.cardBorder),
         ),
         child: Column(
           children: [
             // Circular avatar
             Stack(
-              alignment: Alignment.center,
+              clipBehavior: Clip.none,
               children: [
                 Container(
                   width: 64, height: 64,
@@ -807,14 +857,28 @@ class _ExpertCard extends StatelessWidget {
                     color: expert.avatarColor.withAlpha(20),
                     border: Border.all(color: expert.avatarColor.withAlpha(50), width: 2),
                   ),
-                  child: Center(child: Text(expert.initials, style: TextStyle(color: expert.avatarColor, fontWeight: FontWeight.w700, fontSize: 20))),
+                  child: ClipOval(
+                    child: expert.avatarUrl != null && expert.avatarUrl!.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: fixStorageUrl(expert.avatarUrl!),
+                            fit: BoxFit.cover,
+                            placeholder: (_, _) => Center(child: Text(expert.initials, style: TextStyle(color: expert.avatarColor, fontWeight: FontWeight.w700, fontSize: 20))),
+                            errorWidget: (_, _, _) => Center(child: Text(expert.initials, style: TextStyle(color: expert.avatarColor, fontWeight: FontWeight.w700, fontSize: 20))),
+                          )
+                        : Center(child: Text(expert.initials, style: TextStyle(color: expert.avatarColor, fontWeight: FontWeight.w700, fontSize: 20))),
+                  ),
                 ),
+                if (expert.isOnline)
+                  Positioned(
+                    bottom: 0, right: 0,
+                    child: OnlinePresenceDot(size: 11),
+                  ),
               ],
             ),
             const SizedBox(height: 10),
-            Text(expert.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(expert.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 2),
-            Text(expert.specialty, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(expert.specialty, style: TextStyle(fontSize: 11, color: AppColors.textSecondary), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 8),
             // Rating + En ligne
             Row(
@@ -822,7 +886,7 @@ class _ExpertCard extends StatelessWidget {
               children: [
                 const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 14),
                 const SizedBox(width: 3),
-                Text(expert.rating.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                Text(expert.rating.toStringAsFixed(1), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
                 const SizedBox(width: 10),
                 // isOnline = real-time Redis heartbeat presence
                 if (expert.isOnline)
@@ -858,7 +922,7 @@ class _ExpertCard extends StatelessWidget {
               child: Container(
                 width: double.infinity, height: 30,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+                  gradient: LinearGradient(colors: [AppColors.primary, AppColors.secondary]),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Center(child: Text('Consulter', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600))),
@@ -882,9 +946,9 @@ class _MockExpertCard extends StatelessWidget {
       width: 148,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF111631),
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withAlpha(8)),
+        border: Border.all(color: AppColors.cardBorder),
       ),
       child: Column(
         children: [
@@ -898,16 +962,16 @@ class _MockExpertCard extends StatelessWidget {
             child: Center(child: Text(data['initials'] as String, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 20))),
           ),
           const SizedBox(height: 10),
-          Text(data['name'] as String, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(data['name'] as String, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 2),
-          Text(data['specialty'] as String, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(data['specialty'] as String, style: TextStyle(fontSize: 11, color: AppColors.textSecondary), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 14),
               const SizedBox(width: 3),
-              Text((data['rating'] as double).toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+              Text((data['rating'] as double).toStringAsFixed(1), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
               const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -926,7 +990,7 @@ class _MockExpertCard extends StatelessWidget {
             child: Container(
               width: double.infinity, height: 30,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+                gradient: LinearGradient(colors: [AppColors.primary, AppColors.secondary]),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Center(child: Text('Consulter', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600))),
@@ -956,14 +1020,14 @@ class _ConsultationList extends ConsumerWidget {
       error: (err, st) => Text('Erreur: $err', style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
       data: (convs) => convs.isEmpty
           ? _buildEmptyConsultations()
-          : Column(children: convs.map((c) => _ConsultationCard(conversation: c)).toList()),
+          : Column(children: convs.take(3).map((c) => _ConsultationCard(conversation: c)).toList()),
     );
   }
 
   Widget _buildEmptyConsultations() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Center(child: Text('Aucune consultation', style: TextStyle(color: Colors.white38, fontSize: 13))),
+      child: Center(child: Text('Aucune consultation', style: TextStyle(color: AppColors.textTertiary, fontSize: 13))),
     );
   }
 }
@@ -972,89 +1036,182 @@ class _ConsultationCard extends StatelessWidget {
   final Map<String, dynamic> conversation;
   const _ConsultationCard({required this.conversation});
 
+  static bool _isAi(Map<String, dynamic> c) {
+    if (c['expert'] == null) return true;
+    final s  = c['status']  as String? ?? '';
+    final ch = c['channel'] as String? ?? '';
+    return s == 'ai' || ch == 'ai';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final id = conversation['id'] as int?;
-    final expert = conversation['expert'] as Map<String, dynamic>?;
+    final id     = conversation['id'] as int?;
+    final isAi   = _isAi(conversation);
+    final expert     = conversation['expert'] as Map<String, dynamic>?;
     final expertUser = expert?['user'] as Map<String, dynamic>?;
-    final expertName = expertUser?['name'] as String? ?? 'Expert';
-    final lastMessage = (conversation['last_message'] as Map<String, dynamic>?)?['content'] as String? ?? '';
+
+    final expertName = isAi
+        ? 'Assistant IA Nexora'
+        : (expertUser?['name'] as String? ?? 'Expert');
+    final specialty = isAi
+        ? 'Assistant médical IA'
+        : (expert?['category']?['name'] as String? ?? '');
+    final avatarUrl  = expertUser?['avatar_url'] as String?;
+    final isOnline   = isAi ? true : (expertUser?['is_online'] as bool? ?? false);
+    final isValidated = (expert?['status'] as String?) == 'validated';
+    final status     = conversation['status'] as String? ?? 'ai';
+    final isClosed   = status == 'closed';
+
+    final colorSeed = expertName.codeUnits.fold(0, (a, b) => a + b);
+    const colors = [
+      Color(0xFF8B5CF6), Color(0xFF0EA5E9),
+      Color(0xFF10B981), Color(0xFFF59E0B),
+      Color(0xFFEC4899), Color(0xFF6366F1),
+    ];
+    final color = isAi ? const Color(0xFF6366F1) : colors[colorSeed % colors.length];
+
+    final lastMsg = conversation['last_message'] as Map<String, dynamic>?;
+    final senderType = lastMsg?['sender_type'] as String? ?? 'user';
+    final msgType    = lastMsg?['type'] as String? ?? 'text';
+    final content    = lastMsg?['content'] as String? ?? '';
+    String preview;
+    if (lastMsg == null) {
+      preview = isAi ? 'Votre assistant médical' : 'Démarrer la conversation…';
+    } else {
+      final prefix = senderType == 'user' ? 'Vous : ' : senderType == 'expert' ? 'Dr : ' : 'IA : ';
+      preview = msgType == 'audio'
+          ? '${prefix}🎤 Message vocal'
+          : msgType == 'file'
+              ? '${prefix}📎 Fichier'
+              : prefix + content;
+    }
 
     return GestureDetector(
-      onTap: id != null
-          ? () => context.push(AppRoutes.chat, extra: {
-                'name': expertName, 'initials': 'EX',
-                'color': const Color(0xFF8B5CF6),
-                'subtitle': 'Expert', 'online': true,
-                'isAi': false, 'conversationId': id,
-              })
-          : null,
+      onTap: id == null ? null : () {
+        if (isAi) {
+          context.push(AppRoutes.chat, extra: {
+            'name': 'Assistant IA Nexora',
+            'initials': 'N',
+            'color': const Color(0xFF6366F1),
+            'subtitle': 'Assistant médical IA',
+            'online': true,
+            'isAi': true,
+            'conversationId': id,
+            'avatarUrl': null,
+          });
+        } else {
+          context.push(AppRoutes.chat, extra: {
+            'name': expertName,
+            'initials': expertName.isNotEmpty ? expertName[0].toUpperCase() : 'E',
+            'color': color,
+            'subtitle': specialty,
+            'online': isOnline,
+            'isAi': false,
+            'conversationId': id,
+            'avatarUrl': avatarUrl,
+            'isValidated': isValidated,
+            'isClosed': isClosed,
+            'hasExpert': conversation['expert_id'] != null,
+            'existingRating': conversation['rating'] as int?,
+          });
+        }
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFF111631),
+          color: AppColors.card,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withAlpha(8)),
+          border: Border.all(color: AppColors.cardBorder),
         ),
         child: Row(
           children: [
-            // Icon
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF6366F1).withAlpha(15),
-                border: Border.all(color: const Color(0xFF6366F1).withAlpha(35)),
+            // Avatar
+            if (isAi)
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [AppColors.primary, AppColors.primaryDark]),
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/nexora1.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              )
+            else
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withAlpha(15),
+                  border: Border.all(color: color.withAlpha(35)),
+                ),
+                child: ClipOval(
+                  child: (avatarUrl != null && avatarUrl.isNotEmpty)
+                      ? CachedNetworkImage(
+                          imageUrl: fixStorageUrl(avatarUrl),
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => Center(
+                            child: Text(
+                              expertName.isNotEmpty ? expertName[0].toUpperCase() : 'E',
+                              style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 16),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            expertName.isNotEmpty ? expertName[0].toUpperCase() : 'E',
+                            style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 16),
+                          ),
+                        ),
+                ),
               ),
-              child: const Icon(Icons.medical_services_outlined, color: Color(0xFF818CF8), size: 20),
-            ),
             const SizedBox(width: 12),
             // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Consultation avec $expertName', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 3),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          expertName,
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (!isAi && isValidated) ...[
+                        const SizedBox(width: 6),
+                        const Icon(
+                          Icons.verified,
+                          size: 14,
+                          color: Color(0xFF3B82F6),
+                        ),
+                      ],
+                    ]),
+                  const SizedBox(height: 2),
                   Text(
-                    lastMessage.isEmpty ? 'Contrôle général' : lastMessage,
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    specialty,
+                    style: TextStyle(fontSize: 11, color: color.withAlpha(180)),
                     maxLines: 1, overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today_rounded, size: 11, color: Color(0xFF64748B)),
-                      const SizedBox(width: 4),
-                      const Text('12 Mai 2025', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                      const SizedBox(width: 10),
-                      const Icon(Icons.access_time_rounded, size: 11, color: Color(0xFF64748B)),
-                      const SizedBox(width: 4),
-                      const Text('10:30', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                    ],
+                  const SizedBox(height: 4),
+                  Text(
+                    preview,
+                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            // Status badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withAlpha(15),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF6366F1).withAlpha(40)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('À venir', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF818CF8))),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.arrow_forward_ios_rounded, size: 8, color: Color(0xFF818CF8)),
-                ],
-              ),
-            ),
+            Icon(Icons.arrow_forward_ios_rounded, size: 13, color: AppColors.textSecondary),
           ],
         ),
       ),

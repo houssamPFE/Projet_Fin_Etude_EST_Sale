@@ -1,0 +1,551 @@
+/* ── Page layout ─────────────────────────────────────────────────────────── */
+.upg-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+.upg-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.upg-title {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+  margin-bottom: 12px;
+}
+
+.upg-title-gradient {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.upg-subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  max-width: 520px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.upg-loading {
+  display: flex;
+  justify-content: center;
+  padding: 80px 0;
+  color: var(--text-secondary);
+}
+
+/* ── Plan grid ───────────────────────────────────────────────────────────── */
+.upg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+/* ── Plan card ───────────────────────────────────────────────────────────── */
+.upg-card {
+  position: relative;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.upg-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 60px -15px rgba(0,0,0,0.3);
+}
+
+.upg-card--highlight {
+  border-color: rgba(124, 58, 237, 0.5);
+  box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.3), 0 20px 60px -15px rgba(124, 58, 237, 0.25);
+}
+
+.upg-card--current {
+  border-color: rgba(37, 99, 235, 0.5);
+}
+
+.upg-card-glow {
+  position: absolute;
+  inset: -1px;
+  border-radius: 21px;
+  background: linear-gradient(135deg, rgba(109,40,217,0.4), rgba(124,58,237,0.4), rgba(37,99,235,0.4));
+  z-index: 0;
+  filter: blur(1px);
+  pointer-events: none;
+}
+
+.upg-card-inner {
+  position: relative;
+  z-index: 1;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg-glass);
+  border-radius: 20px;
+}
+
+/* ── Badge ───────────────────────────────────────────────────────────────── */
+.upg-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 14px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  z-index: 2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.upg-badge--current {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+}
+
+/* ── Card icon ───────────────────────────────────────────────────────────── */
+.upg-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+/* ── Card name ───────────────────────────────────────────────────────────── */
+.upg-card-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* ── Price ───────────────────────────────────────────────────────────────── */
+.upg-card-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.upg-price-free {
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #4b5563, #9ca3af);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.upg-price-amount {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.04em;
+}
+
+.upg-price-currency {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+.upg-price-period {
+  font-size: 0.85rem;
+  color: var(--text-muted, var(--text-secondary));
+}
+
+/* ── Consult badge ───────────────────────────────────────────────────────── */
+.upg-consult-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 99px;
+  background: rgba(37, 99, 235, 0.12);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  color: #93c5fd;
+  font-size: 12px;
+  font-weight: 600;
+  width: fit-content;
+}
+
+/* ── Features ────────────────────────────────────────────────────────────── */
+.upg-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upg-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.upg-feature--included {
+  color: var(--text-primary);
+}
+
+.upg-feature--locked {
+  color: var(--text-secondary);
+  opacity: 0.55;
+}
+
+.upg-feature-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.upg-feature-icon--locked {
+  background: rgba(107, 114, 128, 0.3) !important;
+}
+
+/* ── Credits info ────────────────────────────────────────────────────────── */
+.upg-credits-info {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px 14px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 10px;
+}
+
+.upg-credits-count {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #60a5fa;
+}
+
+.upg-credits-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ── CTA button ──────────────────────────────────────────────────────────── */
+.upg-cta {
+  width: 100%;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.2s, transform 0.15s;
+  margin-top: auto;
+}
+
+.upg-cta--upgrade {
+  color: #fff;
+}
+
+.upg-cta--upgrade:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+.upg-cta--current {
+  background: rgba(37, 99, 235, 0.12);
+  color: #60a5fa;
+  cursor: default;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+}
+
+.upg-cta--free {
+  background: var(--bg-hover, rgba(255,255,255,0.05));
+  color: var(--text-secondary);
+  cursor: default;
+  border: 1px solid var(--border);
+}
+
+/* ── Extra credit section ────────────────────────────────────────────────── */
+.upg-extra {
+  margin-top: 8px;
+  margin-bottom: 32px;
+}
+
+.upg-extra-inner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  flex-wrap: wrap;
+}
+
+.upg-extra-text {
+  flex: 1;
+  min-width: 200px;
+}
+
+.upg-extra-text h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.upg-extra-text p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.upg-extra-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.upg-extra-amount {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.upg-extra-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.upg-extra-btn {
+  padding: 10px 22px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.upg-extra-btn:hover:not(:disabled) { opacity: 0.85; }
+.upg-extra-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.upg-extra-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 8px 0 0;
+  opacity: 0.7;
+}
+
+/* ── Trust badges ────────────────────────────────────────────────────────── */
+.upg-trust {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.upg-trust-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.upg-trust-item svg { color: #4ade80; flex-shrink: 0; }
+
+/* ── Payment modal ───────────────────────────────────────────────────────── */
+.upg-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 20px;
+}
+
+.upg-modal {
+  background: var(--bg-secondary, #0f1729);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 28px;
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+}
+
+.upg-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: var(--bg-hover, rgba(255,255,255,0.06));
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background 0.15s;
+}
+.upg-modal-close:hover { background: var(--bg-active, rgba(255,255,255,0.1)); }
+
+.upg-modal-header {
+  margin-bottom: 24px;
+}
+.upg-modal-header h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+}
+.upg-modal-header p {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.upg-payment-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.upg-method-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-hover, rgba(255,255,255,0.04));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: left;
+  color: var(--text-primary);
+}
+.upg-method-btn:hover:not(:disabled) {
+  border-color: rgba(37, 99, 235, 0.5);
+  background: rgba(37, 99, 235, 0.06);
+}
+.upg-method-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.upg-method-btn > svg:first-child { color: var(--text-secondary); flex-shrink: 0; }
+
+.upg-method-btn span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.upg-method-btn strong { font-size: 14px; font-weight: 600; }
+.upg-method-btn small  { font-size: 12px; color: var(--text-secondary); }
+
+.upg-method-arrow { color: var(--text-secondary); flex-shrink: 0; }
+
+/* ── Stripe form ─────────────────────────────────────────────────────────── */
+.upg-stripe-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.upg-stripe-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+.upg-stripe-header p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+
+.upg-card-wrapper {
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.upg-stripe-trust {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.upg-stripe-trust svg { color: #4ade80; flex-shrink: 0; }
+
+.upg-stripe-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.upg-btn-ghost {
+  flex: 1;
+  padding: 11px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.upg-btn-ghost:hover:not(:disabled) { background: var(--bg-hover, rgba(255,255,255,0.04)); }
+
+.upg-btn-pay {
+  flex: 2;
+  padding: 11px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.2s;
+}
+.upg-btn-pay:hover:not(:disabled) { opacity: 0.88; }
+.upg-btn-pay:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Spinner ─────────────────────────────────────────────────────────────── */
+.upg-spin { animation: upg-spin 0.7s linear infinite; }
+@keyframes upg-spin { to { transform: rotate(360deg); } }

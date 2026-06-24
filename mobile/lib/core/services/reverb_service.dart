@@ -7,7 +7,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../network/dio_client.dart';
 import '../services/token_storage.dart';
 
-const _kReverbHost   = '10.0.2.2';
+final _kReverbHost   = Uri.parse(kBaseUrl).host;
 const _kReverbWsPort = 8080;
 const _kReverbAppKey = 'nexora-key';
 
@@ -205,8 +205,10 @@ class ReverbService {
     String auth = '';
     try {
       final token = await _storage.read();
+      final baseUri = Uri.parse(kBaseUrl);
+      final authUrl = '${baseUri.scheme}://${baseUri.host}:${baseUri.port}/broadcasting/auth';
       final res = await _dio.post(
-        'http://$_kReverbHost:8000/broadcasting/auth',
+        authUrl,
         data: {'socket_id': _socketId, 'channel_name': name},
         options: Options(
           headers: {

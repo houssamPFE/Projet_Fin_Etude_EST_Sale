@@ -20,15 +20,19 @@ class TranscriptionCompleteController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 401);
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'message_id'    => ['required', 'exists:messages,id'],
-            'transcription' => ['required', 'string'],
+            'transcription' => ['present', 'nullable', 'string'],
+            'success'       => ['nullable', 'boolean'],
         ]);
 
-        $message = Message::findOrFail($request->message_id);
-        $message->update(['transcription' => $request->transcription]);
+        $message = Message::findOrFail($validated['message_id']);
+        $transcription = trim((string) ($validated['transcription'] ?? ''));
+        $message->update(['transcription' => $transcription]);
 
-        ProcessMessageJob::dispatch($message);
+        if ($transcription !== '') {
+            ProcessMessageJob::dispatch($message);
+        }
 
         return response()->json(['message' => 'Transcription saved.']);
     }

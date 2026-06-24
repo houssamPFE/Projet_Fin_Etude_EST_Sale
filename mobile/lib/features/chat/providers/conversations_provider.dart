@@ -46,5 +46,7 @@ final conversationsProvider = FutureProvider((ref) async {
   }
 });
 
-List<Map<String, dynamic>> _filter(List<Map<String, dynamic>> list) =>
-    list.where((c) => (c['status'] as String?) != 'closed').toList();
+List<Map<String, dynamic>> _filter(List<Map<String, dynamic>> list) => list;
+
+/// When set to true, ConversationsScreen auto-switches to the IA filter tab.
+final aiFilterRequestedProvider = StateProvider<bool>((ref) => false);

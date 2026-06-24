@@ -1,10 +1,13 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Star, Clock, ArrowLeft, CheckCircle, Loader2, MessageSquare,
-  ShieldCheck, MapPin, Languages, Award, Calendar, Activity,
+  ShieldCheck, MapPin, Languages, Award, Calendar, Lock, Activity,
 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useExpert, useExpertReviews } from '../../hooks/useExperts';
+import { getEcho } from '../../lib/echo';
+import useAuthStore from '../../stores/authStore';
 import './ExpertDetailPage.css';
 
 function StarRow({ rating }) {
@@ -31,6 +34,34 @@ export default function ExpertDetailPage() {
   const navigate = useNavigate();
   const { data: expert, isLoading } = useExpert(id);
   const { data: reviewsData, isLoading: reviewsLoading } = useExpertReviews(id);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const [presenceOverride, setPresenceOverride] = useState(null);
+  // ⚠️ Must be here — before any early return — to avoid "rendered more hooks" error
+  const user = useAuthStore((s) => s.user);
+
+  // Real-time online dot — subscribe to expert-presence channel once expert loads
+  useEffect(() => {
+    if (!expert?.id) return;
+    const echo = getEcho();
+    const channel = echo.private(`expert-presence.${expert.id}`);
+    channel.listen('.user.presence', (event) => {
+      setPresenceOverride(event.is_online === true);
+    });
+    return () => {
+      channel.stopListening('.user.presence');
+      echo.leave(`expert-presence.${expert.id}`);
+    };
+  }, [expert?.id]);
+
+  // When the query re-fetches and brings a fresh is_online value, reconcile with WS state.
+  useEffect(() => {
+    if (!expert) return;
+    const freshOnline = expert.user?.is_online ?? false;
+    setPresenceOverride((prev) => {
+      if (prev === false && freshOnline === true) return false; // keep WS "offline" until DB catches up
+      return null; // trust fresh DB value
+    });
+  }, [expert]);
 
   if (isLoading) {
     return (
@@ -44,8 +75,11 @@ export default function ExpertDetailPage() {
     return <div className="ed-empty">Médecin introuvable.</div>;
   }
 
+  const canConsult = user?.plan !== 'free' && (user?.consultation_credits ?? 0) > 0;
+
   const reviews = reviewsData?.data ?? [];
   const initials = expert.user?.name?.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() ?? 'D';
+  const isOnline = presenceOverride !== null ? presenceOverride : (expert.user?.is_online ?? false);
 
   return (
     <div className="ed">
@@ -63,8 +97,19 @@ export default function ExpertDetailPage() {
 
         <div className="ed-hero-main">
           <div className="ed-avatar-wrap">
-            <div className="ed-avatar">{initials}</div>
-            {expert.user?.is_online && <span className="ed-avatar-pulse" />}
+            <div className="ed-avatar">
+              {expert.user?.avatar_url && !avatarFailed ? (
+                <img
+                  src={expert.user.avatar_url}
+                  alt={expert.user.name}
+                  className="ed-avatar-img"
+                  onError={() => setAvatarFailed(true)}
+                />
+              ) : (
+                initials
+              )}
+            </div>
+            {isOnline && <span className="ed-avatar-pulse" />}
           </div>
 
           <div className="ed-hero-info">
@@ -81,7 +126,7 @@ export default function ExpertDetailPage() {
                   Vérifié INPE
                 </span>
               )}
-              {expert.user?.is_online && (
+              {isOnline && (
                 <span className="ed-chip ed-chip--online">
                   <Activity size={12} />
                   En ligne
@@ -101,21 +146,31 @@ export default function ExpertDetailPage() {
         </div>
 
         <div className="ed-hero-cta">
-          <button
-            className="ed-cta"
-            disabled={!expert.is_available}
-            onClick={() => navigate('/conversations/new', {
-              state: {
-                expert_id: expert.id,
-              },
-            })}
-          >
-            <MessageSquare size={18} />
-            Démarrer une consultation
-          </button>
+          {canConsult ? (
+            <button
+              className="ed-cta"
+              disabled={!expert.is_available}
+              onClick={() => navigate('/conversations/new', { state: { expert_id: expert.id } })}
+            >
+              <MessageSquare size={18} />
+              Démarrer une consultation
+            </button>
+          ) : (
+            <button
+              className="ed-cta ed-cta--locked"
+              onClick={() => navigate('/upgrade', { state: { reason: user?.plan === 'free' ? 'no_plan' : 'no_credits' } })}
+            >
+              <Lock size={16} />
+              {user?.plan === 'free' ? 'Passer au plan Pro' : 'Acheter des crédits'}
+            </button>
+          )}
           <div className="ed-cta-meta">
             <Clock size={13} />
-            Réponse en moyenne sous 5 min
+            {canConsult
+              ? 'Réponse en moyenne sous 5 min'
+              : user?.plan === 'free'
+                ? '1 crédit de consultation requis — Plan Pro ou Premium'
+                : `Il vous reste 0 crédit — rechargez pour consulter`}
           </div>
         </div>
       </motion.div>
@@ -125,11 +180,6 @@ export default function ExpertDetailPage() {
           <div className="ed-stat-icon ed-stat-icon--star"><Star size={18} /></div>
           <div className="ed-stat-value">{Number(expert.rating_avg ?? 0).toFixed(1)}</div>
           <div className="ed-stat-label">{expert.total_reviews} avis</div>
-        </div>
-        <div className="ed-stat">
-          <div className="ed-stat-icon ed-stat-icon--rate"><Activity size={18} /></div>
-          <div className="ed-stat-value">{expert.hourly_rate ?? '—'}<span className="ed-stat-unit"> MAD</span></div>
-          <div className="ed-stat-label">par heure</div>
         </div>
         <div className="ed-stat">
           <div className="ed-stat-icon ed-stat-icon--cal"><Calendar size={18} /></div>
@@ -172,6 +222,7 @@ export default function ExpertDetailPage() {
             <MapPin size={16} /> Cabinet
           </h2>
           <p className="ed-cabinet">
+            {expert.city ? <><strong>{expert.city}</strong> · </> : ''}
             Consultations en ligne uniquement via la plateforme Nexora.
             Échanges sécurisés et confidentiels.
           </p>

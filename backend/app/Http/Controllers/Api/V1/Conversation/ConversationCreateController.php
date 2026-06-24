@@ -28,19 +28,21 @@ class ConversationCreateController extends Controller
 
         $conversation = $this->conversationService->create($user, $request->validated());
 
-        // Send the initial message
-        $message = $this->messageService->sendText(
-            $conversation,
-            $user,
-            $request->validated('message')
-        );
+        $data = ['conversation' => new ConversationResource($conversation)];
+
+        // Optionally send an initial message if provided
+        if ($request->filled('message')) {
+            $message = $this->messageService->sendText(
+                $conversation,
+                $user,
+                $request->validated('message')
+            );
+            $data['message'] = new MessageResource($message);
+        }
 
         return response()->json([
             'message' => 'Conversation créée.',
-            'data'    => [
-                'conversation' => new ConversationResource($conversation),
-                'message'      => new MessageResource($message),
-            ],
+            'data'    => $data,
         ], 201);
     }
 }

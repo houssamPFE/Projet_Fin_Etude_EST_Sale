@@ -34,6 +34,11 @@ class User extends Authenticatable
         'fcm_token',
         'last_seen_at',
         'is_online_visible',
+        'last_activity_at',
+        'last_activity_type',
+        'plan',
+        'consultation_credits',
+        'plan_expires_at',
     ];
 
     protected $hidden = ['password', 'remember_token', 'two_factor_secret'];
@@ -44,11 +49,39 @@ class User extends Authenticatable
             'email_verified_at'      => 'datetime',
             'two_factor_confirmed_at'=> 'datetime',
             'last_seen_at'           => 'datetime',
+            'last_activity_at'       => 'datetime',
             'password'               => 'hashed',
             'is_active'              => 'boolean',
             'is_online_visible'      => 'boolean',
             'role'                   => Role::class,
+            'plan_expires_at'        => 'datetime',
+            'consultation_credits'   => 'integer',
         ];
+    }
+
+    public function isPro(): bool
+    {
+        return $this->plan === 'pro' && $this->plan_expires_at?->isFuture();
+    }
+
+    public function isPremium(): bool
+    {
+        return $this->plan === 'premium' && $this->plan_expires_at?->isFuture();
+    }
+
+    public function hasPaidPlan(): bool
+    {
+        return $this->isPro() || $this->isPremium();
+    }
+
+    public function hasCredits(): bool
+    {
+        return $this->consultation_credits > 0;
+    }
+
+    public function canConsult(): bool
+    {
+        return $this->hasPaidPlan() && $this->hasCredits();
     }
 
     public function isAdmin(): bool

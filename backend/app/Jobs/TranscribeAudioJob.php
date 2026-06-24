@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Storage;
 
 class TranscribeAudioJob implements ShouldQueue
 {
@@ -21,10 +22,17 @@ class TranscribeAudioJob implements ShouldQueue
 
     public function handle(N8nService $n8nService): void
     {
+        // Generate a presigned S3 URL valid for 15 minutes so n8n can download the file.
+        // media_url stores the S3 path (e.g. conversations/1/audio/abc.webm), not a URL.
+        $audioUrl = Storage::disk('s3')->temporaryUrl(
+            $this->message->media_url,
+            now()->addMinutes(15)
+        );
+
         $n8nService->transcribe([
             'message_id'      => $this->message->id,
             'conversation_id' => $this->message->conversation_id,
-            'audio_url'       => $this->message->media_url,
+            'audio_url'       => $audioUrl,
             'language'        => $this->message->conversation?->user?->language ?? 'fr',
         ]);
     }

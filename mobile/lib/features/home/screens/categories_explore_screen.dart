@@ -1,15 +1,38 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/network/dio_client.dart' show fixStorageUrl;
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_gradients.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../models/category_model.dart';
 import '../models/expert_model.dart';
 import '../providers/home_providers.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Category → accent color mapping
+// ─────────────────────────────────────────────────────────────────────────────
+
+Color _categoryColor(String slug) {
+  switch (slug) {
+    case 'medecine-generale': return const Color(0xFF60A5FA);
+    case 'pediatrie':         return const Color(0xFFFB923C);
+    case 'cardiologie':       return const Color(0xFFFB7185);
+    case 'dermatologie':      return const Color(0xFF34D399);
+    case 'gynecologie':       return const Color(0xFFF472B6);
+    case 'psychiatrie':       return const Color(0xFFA78BFA);
+    case 'dentisterie':       return const Color(0xFF38BDF8);
+    case 'ophtalmologie':     return const Color(0xFFFBBF24);
+    default:                  return const Color(0xFF6366F1);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Screen
+// ─────────────────────────────────────────────────────────────────────────────
 
 class CategoriesExploreScreen extends ConsumerStatefulWidget {
   const CategoriesExploreScreen({super.key});
@@ -19,14 +42,23 @@ class CategoriesExploreScreen extends ConsumerStatefulWidget {
       _CategoriesExploreScreenState();
 }
 
-class _CategoriesExploreScreenState extends ConsumerState<CategoriesExploreScreen> {
+class _CategoriesExploreScreenState
+    extends ConsumerState<CategoriesExploreScreen> {
   int? _selectedCategoryId;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final categoriesAsync = ref.watch(categoriesProvider);
-    final expertsAsync = ref.watch(expertsProvider);
+    final expertsAsync    = ref.watch(expertsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -36,79 +68,175 @@ class _CategoriesExploreScreenState extends ConsumerState<CategoriesExploreScree
           SafeArea(
             child: CustomScrollView(
               slivers: [
-                // Header
-                SliverAppBar(
-                  pinned: true,
-                  elevation: 0,
-                  backgroundColor: AppColors.background,
-                  leading: const NexoraBackButton(),
-                  title: Text('Explorez', style: AppTextStyles.headlineSmall),
-                  centerTitle: false,
+                // ── Header ─────────────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top bar
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        child: Row(
+                          children: [
+                            const NexoraBackButton(),
+                            const SizedBox(width: 14),
+                            ShaderMask(
+                              shaderCallback: (r) => const LinearGradient(
+                                colors: [Colors.white, Color(0xFFC4B5FD)],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ).createShader(r),
+                              child: Text(
+                                'Explorez',
+                                style: AppTextStyles.headlineMedium.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.6,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Sub-text
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 6, 20, 18),
+                        child: expertsAsync.when(
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, __) => const SizedBox.shrink(),
+                          data: (experts) => categoriesAsync.when(
+                            loading: () => const SizedBox.shrink(),
+                            error: (_, __) => const SizedBox.shrink(),
+                            data: (cats) => RichText(
+                              text: TextSpan(
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: const Color(0xFF9DA8BE),
+                                  height: 1.45,
+                                ),
+                                children: [
+                                  const TextSpan(text: 'Trouvez le bon expert. '),
+                                  TextSpan(
+                                    text: '${cats.length} spécialités',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const TextSpan(text: ', '),
+                                  TextSpan(
+                                    text: '${experts.where((e) => e.isAvailable).length} médecins',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const TextSpan(text: ' disponibles aujourd\'hui.'),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Search bar
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        child: ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _searchController,
+                          builder: (context, value, _) => TextField(
+                            controller: _searchController,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              fontSize: 14,
+                              color: AppColors.textPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Spécialité, symptôme, médecin…',
+                              hintStyle: AppTextStyles.bodyMedium.copyWith(
+                                color: AppColors.textSecondary,
+                                fontSize: 13.5,
+                              ),
+                              prefixIcon: Padding(
+                                padding: const EdgeInsets.only(left: 14, right: 8),
+                                child: Icon(
+                                  Icons.search_rounded,
+                                  size: 19,
+                                  color: value.text.isNotEmpty
+                                      ? AppColors.primary
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                              prefixIconConstraints: const BoxConstraints(),
+                              suffixIcon: value.text.isNotEmpty
+                                  ? GestureDetector(
+                                      onTap: () {
+                                        _searchController.clear();
+                                        setState(() => _searchQuery = '');
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(right: 12),
+                                        child: Icon(Icons.close_rounded,
+                                            size: 17, color: AppColors.textSecondary),
+                                      ),
+                                    )
+                                  : null,
+                              suffixIconConstraints: const BoxConstraints(),
+                              filled: true,
+                              fillColor: AppColors.surfaceElevated,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 13),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(color: AppColors.border),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(color: AppColors.border),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                    color: AppColors.primary, width: 1.5),
+                              ),
+                            ),
+                            onChanged: (v) =>
+                                setState(() => _searchQuery = v.toLowerCase()),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
 
-                // Categories section
+                // ── Categories section label ────────────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                    child: Row(
                       children: [
-                        Text(
-                          'Spécialités médicales',
-                          style: AppTextStyles.titleLarge,
+                        Container(
+                          width: 14, height: 1,
+                          color: const Color(0xFFA78BFA),
                         ),
-                        const SizedBox(height: 16),
-                        categoriesAsync.when(
-                          loading: () => SizedBox(
-                            height: 140,
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                color: AppColors.primary,
-                              ),
-                            ),
+                        const SizedBox(width: 7),
+                        Text(
+                          'SPÉCIALITÉS',
+                          style: AppTextStyles.overline.copyWith(
+                            color: Colors.white.withAlpha(100),
+                            letterSpacing: 1.2,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
-                          error: (e, _) => SizedBox(
-                            height: 80,
-                            child: Center(
-                              child: Text(
-                                'Erreur de chargement',
-                                style: AppTextStyles.caption
-                                    .copyWith(color: AppColors.error),
-                              ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => context.go(AppRoutes.experts),
+                          child: Text(
+                            'Tout voir →',
+                            style: AppTextStyles.caption.copyWith(
+                              color: const Color(0xFFA78BFA),
+                              fontWeight: FontWeight.w500,
                             ),
-                          ),
-                          data: (categories) => GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              childAspectRatio: 0.95,
-                            ),
-                            itemCount: categories.length,
-                            itemBuilder: (context, i) {
-                              final cat = categories[i];
-                              return _CategoryCard(
-                                category: cat,
-                                isSelected: _selectedCategoryId == cat.id,
-                                onTap: () {
-                                  setState(() {
-                                    _selectedCategoryId =
-                                        _selectedCategoryId == cat.id
-                                            ? null
-                                            : cat.id;
-                                  });
-                                },
-                              )
-                                  .animate()
-                                  .fadeIn(
-                                    delay: (i * 50).ms,
-                                    duration: 400.ms,
-                                  )
-                                  .slideY(begin: 0.1, end: 0);
-                            },
                           ),
                         ),
                       ],
@@ -116,54 +244,149 @@ class _CategoriesExploreScreenState extends ConsumerState<CategoriesExploreScree
                   ),
                 ),
 
-                // Experts by category
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      left: 20,
-                      right: 20,
-                      top: 32,
-                      bottom: 20,
-                    ),
-                    child: Text(
-                      _selectedCategoryId == null
-                          ? 'Tous nos experts'
-                          : 'Experts dans cette spécialité',
-                      style: AppTextStyles.titleLarge,
+                // ── Categories grid ─────────────────────────────────────────
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverToBoxAdapter(
+                    child: categoriesAsync.when(
+                      loading: () => SizedBox(
+                        height: 160,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      ),
+                      error: (_, __) => const SizedBox(
+                        height: 80,
+                        child: Center(
+                          child: Text('Erreur de chargement',
+                              style: TextStyle(color: AppColors.error)),
+                        ),
+                      ),
+                      data: (categories) {
+                        // Build expert counts per category
+                        final Map<int, int> countMap = {};
+                        expertsAsync.whenData((experts) {
+                          for (final e in experts) {
+                            countMap[e.categoryId] =
+                                (countMap[e.categoryId] ?? 0) + 1;
+                          }
+                        });
+
+                        final filtered = _searchQuery.isEmpty
+                            ? categories
+                            : categories
+                                .where((c) =>
+                                    c.name
+                                        .toLowerCase()
+                                        .contains(_searchQuery) ||
+                                    c.description
+                                        .toLowerCase()
+                                        .contains(_searchQuery))
+                                .toList();
+
+                        return GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            childAspectRatio: 0.88,
+                          ),
+                          itemCount: filtered.length,
+                          itemBuilder: (ctx, i) {
+                            final cat = filtered[i];
+                            return _CategoryCard(
+                              category: cat,
+                              isSelected: _selectedCategoryId == cat.id,
+                              expertCount: countMap[cat.id] ?? 0,
+                              onTap: () => setState(() {
+                                _selectedCategoryId =
+                                    _selectedCategoryId == cat.id
+                                        ? null
+                                        : cat.id;
+                              }),
+                            )
+                                .animate()
+                                .fadeIn(
+                                    delay: (i * 50).ms, duration: 350.ms)
+                                .slideY(begin: 0.08, end: 0);
+                          },
+                        );
+                      },
                     ),
                   ),
                 ),
 
-                // Experts list
+                // ── Experts section label ───────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+                    child: Row(
+                      children: [
+                        Text(
+                          _selectedCategoryId == null
+                              ? 'Tous nos experts'
+                              : 'Experts dans cette spécialité',
+                          style: AppTextStyles.titleMedium.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => context.go(AppRoutes.experts),
+                          child: Text(
+                            'Voir tous →',
+                            style: AppTextStyles.caption.copyWith(
+                              color: const Color(0xFFA78BFA),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── Experts list ────────────────────────────────────────────
                 expertsAsync.when(
                   loading: () => SliverToBoxAdapter(
                     child: SizedBox(
                       height: 200,
                       child: Center(
                         child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
+                          color: AppColors.primary, strokeWidth: 2),
                       ),
                     ),
                   ),
-                  error: (e, _) => SliverToBoxAdapter(
+                  error: (_, __) => const SliverToBoxAdapter(
                     child: SizedBox(
                       height: 100,
                       child: Center(
-                        child: Text(
-                          'Erreur de chargement',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.error),
-                        ),
+                        child: Text('Erreur de chargement',
+                            style: TextStyle(color: AppColors.error)),
                       ),
                     ),
                   ),
                   data: (experts) {
-                    final filtered = _selectedCategoryId == null
+                    var filtered = _selectedCategoryId == null
                         ? experts
                         : experts
                             .where((e) => e.categoryId == _selectedCategoryId)
                             .toList();
+
+                    if (_searchQuery.isNotEmpty) {
+                      filtered = filtered
+                          .where((e) =>
+                              e.name.toLowerCase().contains(_searchQuery) ||
+                              e.specialty.toLowerCase().contains(_searchQuery))
+                          .toList();
+                    }
 
                     if (filtered.isEmpty) {
                       return SliverToBoxAdapter(
@@ -173,17 +396,13 @@ class _CategoriesExploreScreenState extends ConsumerState<CategoriesExploreScree
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.person_off_outlined,
-                                  size: 48,
-                                  color: AppColors.textTertiary,
-                                ),
-                                const SizedBox(height: 12),
+                                Icon(Icons.person_off_outlined,
+                                    size: 40, color: AppColors.textTertiary),
+                                const SizedBox(height: 10),
                                 Text(
                                   'Aucun expert trouvé',
-                                  style: AppTextStyles.bodyMedium
-                                      .copyWith(
-                                          color: AppColors.textSecondary),
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                      color: AppColors.textSecondary),
                                 ),
                               ],
                             ),
@@ -196,26 +415,20 @@ class _CategoriesExploreScreenState extends ConsumerState<CategoriesExploreScree
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       sliver: SliverList.separated(
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, i) {
-                          final expert = filtered[i];
-                          return _ExpertTile(expert: expert)
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (ctx, i) {
+                          return _ExpertTile(expert: filtered[i])
                               .animate()
-                              .fadeIn(
-                                delay: (i * 50).ms,
-                                duration: 400.ms,
-                              )
-                              .slideX(begin: 0.1, end: 0);
+                              .fadeIn(delay: (i * 50).ms, duration: 350.ms)
+                              .slideX(begin: 0.06, end: 0);
                         },
                       ),
                     );
                   },
                 ),
 
-                // Bottom padding
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: 40),
-                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 40)),
               ],
             ),
           ),
@@ -243,25 +456,16 @@ class _ExploreBackground extends StatelessWidget {
           child: BlurOrb(
             width: size.width * 0.8,
             height: size.height * 0.4,
-            color: const Color(0x256366F1),
+            color: const Color(0x206366F1),
           ),
         ),
         Positioned(
           top: size.height * 0.25,
-          right: -size.width * 0.2,
+          right: -size.width * 0.25,
           child: BlurOrb(
             width: size.width * 0.6,
             height: size.height * 0.35,
-            color: const Color(0x1A8B5CF6),
-          ),
-        ),
-        Positioned(
-          bottom: -size.height * 0.1,
-          left: size.width * 0.2,
-          child: BlurOrb(
-            width: size.width * 0.65,
-            height: size.height * 0.3,
-            color: const Color(0x153B82F6),
+            color: const Color(0x1238BDF8),
           ),
         ),
       ],
@@ -276,99 +480,205 @@ class _ExploreBackground extends StatelessWidget {
 class _CategoryCard extends StatelessWidget {
   final CategoryModel category;
   final bool isSelected;
+  final int expertCount;
   final VoidCallback onTap;
 
   const _CategoryCard({
     required this.category,
     required this.isSelected,
+    required this.expertCount,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final color = _categoryColor(category.slug);
+    final cRgb = color;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: isSelected ? AppGradients.button : null,
-          color: isSelected
-              ? null
-              : AppColors.card.withAlpha(150),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? Colors.transparent : AppColors.border,
-            width: 1.5,
+            color: isSelected
+                ? cRgb.withAlpha(90)
+                : Colors.white.withAlpha(15),
+            width: 1,
+          ),
+          gradient: LinearGradient(
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+            colors: [
+              cRgb.withAlpha(isSelected ? 50 : 30),
+              Colors.white.withAlpha(isSelected ? 10 : 5),
+            ],
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppColors.primary.withAlpha(40),
-                    blurRadius: 16,
+                    color: cRgb.withAlpha(40),
+                    blurRadius: 20,
                     spreadRadius: 0,
+                    offset: const Offset(0, 4),
                   )
                 ]
               : null,
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // Icon
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected
-                    ? Colors.white.withAlpha(200)
-                    : AppColors.surfaceElevated,
-              ),
-              child: Center(
-                child: Text(
-                  category.icon,
-                  style: const TextStyle(fontSize: 28),
+            // Top-right glow orb
+            Positioned(
+              top: -30,
+              right: -30,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      cRgb.withAlpha(isSelected ? 55 : 40),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 12),
-
-            // Name
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Icon container
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          cRgb.withAlpha(55),
+                          cRgb.withAlpha(15),
+                        ],
+                      ),
+                      border: Border.all(color: cRgb.withAlpha(75)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: cRgb.withAlpha(45),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        category.icon,
+                        style: const TextStyle(fontSize: 22),
+                      ),
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  // Title
                   Text(
                     category.name,
                     style: AppTextStyles.titleSmall.copyWith(
-                      color:
-                          isSelected ? Colors.white : AppColors.textPrimary,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Description
+                  Text(
+                    category.description,
+                    style: AppTextStyles.caption.copyWith(
+                      color: const Color(0xFF9DA8BE),
+                      height: 1.4,
+                      fontSize: 11.5,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 10),
+
+                  // "Découvrir →"
+                  Row(
+                    children: [
+                      Text(
+                        'DÉCOUVRIR',
+                        style: TextStyle(
+                          color: cRgb,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 13,
+                        color: cRgb,
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 8),
-
-            // Description
-            Text(
-              category.description,
-              style: AppTextStyles.caption.copyWith(
-                color: isSelected
-                    ? Colors.white.withAlpha(200)
-                    : AppColors.textSecondary,
-                height: 1.3,
+            // Count badge top-right
+            if (expertCount > 0)
+              Positioned(
+                top: 14,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(7, 3, 8, 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(65),
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(
+                      color: Colors.white.withAlpha(25),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 5, height: 5,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: cRgb,
+                          boxShadow: [
+                            BoxShadow(
+                              color: cRgb.withAlpha(150),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$expertCount',
+                        style: TextStyle(
+                          color: Colors.white.withAlpha(155),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
           ],
         ),
       ),
@@ -382,46 +692,83 @@ class _CategoryCard extends StatelessWidget {
 
 class _ExpertTile extends StatelessWidget {
   final ExpertModel expert;
-
   const _ExpertTile({required this.expert});
 
   @override
   Widget build(BuildContext context) {
+    final color = _categoryColor(
+      expert.specialty.toLowerCase().replaceAll(' ', '-'),
+    );
+
     return GestureDetector(
       onTap: () => context.push(AppRoutes.expertProfile, extra: expert),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(18),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0x07FFFFFF), Color(0x03FFFFFF)],
+          ),
+          border: Border.all(color: Colors.white.withAlpha(15)),
         ),
         child: Row(
           children: [
             // Avatar
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: expert.avatarColor.withAlpha(40),
-                border: Border.all(
-                  color: expert.avatarColor.withAlpha(80),
-                  width: 1.5,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  expert.initials,
-                  style: AppTextStyles.titleMedium.copyWith(
-                    color: expert.avatarColor,
-                    fontWeight: FontWeight.w700,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        expert.avatarColor.withAlpha(220),
+                        expert.avatarColor.withAlpha(150),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: color.withAlpha(50),
+                      width: 1.5,
+                    ),
                   ),
+                  child: expert.avatarUrl != null && expert.avatarUrl!.isNotEmpty
+                      ? ClipOval(
+                          child: CachedNetworkImage(
+                            imageUrl: fixStorageUrl(expert.avatarUrl!),
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => Center(
+                              child: Text(
+                                expert.initials,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            expert.initials,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
                 ),
-              ),
+              ],
             ),
 
-            const SizedBox(width: 14),
+            const SizedBox(width: 13),
 
             // Info
             Expanded(
@@ -430,91 +777,169 @@ class _ExpertTile extends StatelessWidget {
                 children: [
                   Text(
                     expert.name,
-                    style: AppTextStyles.titleSmall.copyWith(
+                    style: AppTextStyles.bodyMedium.copyWith(
                       fontWeight: FontWeight.w600,
+                      fontSize: 14.5,
+                      letterSpacing: -0.1,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    expert.specialty,
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 3),
+                  // Specialty with colored dot
                   Row(
                     children: [
-                      const Icon(
-                        Icons.star_rounded,
-                        size: 14,
-                        color: Color(0xFFFBBF24),
+                      Container(
+                        width: 5, height: 5,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: color,
+                        ),
                       ),
+                      const SizedBox(width: 5),
+                      Text(
+                        expert.specialty,
+                        style: AppTextStyles.caption.copyWith(
+                          color: const Color(0xFF9DA8BE),
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 7),
+                  // Meta row
+                  Row(
+                    children: [
+                      const Icon(Icons.star_rounded,
+                          size: 11, color: Color(0xFFFBBF24)),
                       const SizedBox(width: 4),
                       Text(
-                        '${expert.rating}',
+                        expert.rating.toStringAsFixed(1),
                         style: AppTextStyles.caption.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                          fontSize: 11,
                         ),
                       ),
-                      const SizedBox(width: 8),
                       Text(
-                        '(${expert.reviewCount})',
+                        ' (${expert.reviewCount})',
                         style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textTertiary,
+                          color: const Color(0xFF9DA8BE),
+                          fontSize: 11,
                         ),
                       ),
-                      const Spacer(),
-                      if (expert.isAvailable)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.success.withAlpha(20),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'Dispo',
-                            style: AppTextStyles.overline.copyWith(
-                              color: AppColors.success,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
 
-            // Rate
+            // Right: availability
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  '${expert.hourlyRate}',
-                  style: AppTextStyles.titleSmall.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
+                if (expert.isAvailable)
+                  _DispoChip()
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(8),
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(
+                          color: Colors.white.withAlpha(18)),
+                    ),
+                    child: Text(
+                      'Indispo',
+                      style: AppTextStyles.overline.copyWith(
+                        color: const Color(0xFF9DA8BE),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                ),
-                Text(
-                  'MAD/h',
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pulsing "Dispo" chip
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DispoChip extends StatefulWidget {
+  @override
+  State<_DispoChip> createState() => _DispoChipState();
+}
+
+class _DispoChipState extends State<_DispoChip>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(9, 4, 9, 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10B981).withAlpha(25),
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(
+          color: const Color(0xFF34D399).withAlpha(70),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedBuilder(
+            animation: _anim,
+            builder: (_, __) => Transform.scale(
+              scale: 1.0 + (_anim.value * 0.5),
+              child: Opacity(
+                opacity: 1.0 - (_anim.value * 0.45),
+                child: Container(
+                  width: 5, height: 5,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF34D399),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            'Dispo',
+            style: AppTextStyles.overline.copyWith(
+              color: const Color(0xFF34D399),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

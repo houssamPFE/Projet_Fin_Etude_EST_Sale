@@ -1,6 +1,6 @@
 enum MessageType { user, ai, expert, system }
 
-enum MessageContentType { text, audio }
+enum MessageContentType { text, audio, file }
 
 class ChatMessage {
   final String id;

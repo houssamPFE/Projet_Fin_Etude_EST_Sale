@@ -20,9 +20,9 @@ class AdminExpertValidateController extends Controller
      */
     public function __invoke(Request $request, Expert $expert): JsonResponse
     {
-        if ($expert->status->value !== 'pending') {
+        if ($expert->status->value === 'validated') {
             return response()->json([
-                'message' => 'Cette candidature a déjà été traitée.',
+                'message' => 'Cet expert est déjà validé.',
             ], 422);
         }
 

@@ -17,6 +17,7 @@ export default function useAudioRecorder() {
   const [seconds, setSeconds] = useState(0);
   const [blob, setBlob] = useState(null);
   const [error, setError] = useState(null);
+  const [stream, setStream] = useState(null);
 
   const recorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -32,6 +33,7 @@ export default function useAudioRecorder() {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
+    setStream(null);
     recorderRef.current = null;
     chunksRef.current = [];
   }, []);
@@ -49,11 +51,12 @@ export default function useAudioRecorder() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = mediaStream;
+      setStream(mediaStream);
 
       const mimeType = pickMimeType();
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const recorder = new MediaRecorder(mediaStream, mimeType ? { mimeType } : undefined);
       recorderRef.current = recorder;
       chunksRef.current = [];
 
@@ -116,5 +119,5 @@ export default function useAudioRecorder() {
     setError(null);
   }, []);
 
-  return { recording, seconds, blob, error, start, stop, cancel, reset };
+  return { recording, seconds, blob, error, stream, start, stop, cancel, reset };
 }

@@ -176,7 +176,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ).animate().fadeIn(delay: 400.ms),
 
-                          if (authState.error != null) ...[
+                          if (authState.maintenance) ...[
+                            const SizedBox(height: 16),
+                            _MaintenanceBanner(),
+                          ] else if (authState.error != null) ...[
                             const SizedBox(height: 16),
                             _ErrorBanner(message: authState.error!),
                           ],
@@ -320,6 +323,57 @@ class _LoginHeader extends StatelessWidget {
   }
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Maintenance banner
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MaintenanceBanner extends StatelessWidget {
+  const _MaintenanceBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF59E0B).withAlpha(22),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF59E0B).withAlpha(80)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.construction_rounded,
+              size: 16, color: Color(0xFFF59E0B)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Plateforme en maintenance',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: const Color(0xFFF59E0B),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Nexora est temporairement indisponible. Veuillez réessayer dans quelques instants.',
+                  style: AppTextStyles.caption.copyWith(
+                    color: const Color(0xFFFCD34D),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Error banner

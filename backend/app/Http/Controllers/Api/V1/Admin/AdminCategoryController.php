@@ -17,7 +17,7 @@ class AdminCategoryController extends Controller
     public function index(Request $request): JsonResponse
     {
         $categories = Category::orderBy('sort_order')
-            ->withCount('experts')
+            ->withCount(['experts as experts_count' => fn ($q) => $q->where('status', 'validated')])
             ->get();
 
         return response()->json([

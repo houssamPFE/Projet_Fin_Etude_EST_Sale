@@ -51,17 +51,17 @@ class _NexoraGradientButtonState extends State<NexoraGradientButton> {
             boxShadow: widget.isLoading || _pressed
                 ? []
                 : [
-                    const BoxShadow(
-                      color: Color(0x706366F1),
-                      blurRadius: 28,
+                    BoxShadow(
+                      color: AppColors.primary.withAlpha(100),
+                      blurRadius: 24,
                       spreadRadius: -4,
-                      offset: Offset(0, 12),
+                      offset: const Offset(0, 10),
                     ),
                   ],
           ),
           child: Center(
             child: widget.isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(

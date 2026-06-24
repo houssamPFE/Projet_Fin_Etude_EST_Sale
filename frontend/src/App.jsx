@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useEffect } from 'react';
 import useAuthStore from './stores/authStore';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Layouts
 import AuthLayout from './layouts/AuthLayout';
@@ -28,17 +29,19 @@ import ExpertWalletPage from './pages/expert/ExpertWalletPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminExpertsPage from './pages/admin/AdminExpertsPage';
+import AdminPendingExpertsPage from './pages/admin/AdminPendingExpertsPage';
 import AdminConversationsPage from './pages/admin/AdminConversationsPage';
 import AdminCategoriesPage from './pages/admin/AdminCategoriesPage';
 import AdminPaymentsPage from './pages/admin/AdminPaymentsPage';
 import AdminKnowledgeBasePage from './pages/admin/AdminKnowledgeBasePage';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage';
-import AdminAIPage from './pages/admin/AdminAIPage';
+import AdminConfigPage from './pages/admin/AdminAIPage';
 import AdminSecurityPage from './pages/admin/AdminSecurityPage';
-import AdminSystemPage from './pages/admin/AdminSystemPage';
+import MaintenancePage from './pages/MaintenancePage';
 import SettingsPage from './pages/settings/SettingsPage';
 import ApplyExpertPage from './pages/settings/ApplyExpertPage';
 import NotificationsPage from './pages/NotificationsPage';
+import UpgradePage from './pages/upgrade/UpgradePage';
 
 // Route guards
 function PrivateRoute({ children }) {
@@ -110,10 +113,11 @@ export default function App() {
           <Route path="/auth/social/callback" element={<SocialAuthCallbackPage />} />
         </Route>
 
+        <Route path="/maintenance" element={<MaintenancePage />} />
         <Route path="/" element={<GuestRoute><LandingPage /></GuestRoute>} />
 
         {/* App routes */}
-        <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>
+        <Route element={<PrivateRoute><ErrorBoundary><AppLayout /></ErrorBoundary></PrivateRoute>}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/experts" element={<ExpertsPage />} />
           <Route path="/experts/:id" element={<ExpertDetailPage />} />
@@ -126,21 +130,23 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/apply-expert" element={<ApplyExpertPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/upgrade" element={<UpgradePage />} />
         </Route>
 
         {/* Admin routes */}
-        <Route element={<AdminRoute><AppLayout /></AdminRoute>}>
+        <Route element={<AdminRoute><ErrorBoundary><AppLayout /></ErrorBoundary></AdminRoute>}>
           <Route path="/admin/dashboard"     element={<AdminDashboardPage />} />
           <Route path="/admin/users"         element={<AdminUsersPage />} />
-          <Route path="/admin/experts"       element={<AdminExpertsPage />} />
+          <Route path="/admin/experts"         element={<AdminExpertsPage />} />
+          <Route path="/admin/experts/pending" element={<AdminPendingExpertsPage />} />
           <Route path="/admin/conversations" element={<AdminConversationsPage />} />
           <Route path="/admin/categories"    element={<AdminCategoriesPage />} />
           <Route path="/admin/payments"      element={<AdminPaymentsPage />} />
           <Route path="/admin/knowledge"     element={<AdminKnowledgeBasePage />} />
           <Route path="/admin/settings"      element={<AdminSettingsPage />} />
-          <Route path="/admin/ai"            element={<AdminAIPage />} />
+          <Route path="/admin/ai"            element={<AdminConfigPage />} />
+          <Route path="/admin/system"        element={<Navigate to="/admin/ai" replace />} />
           <Route path="/admin/security"      element={<AdminSecurityPage />} />
-          <Route path="/admin/system"        element={<AdminSystemPage />} />
         </Route>
 
         {/* Default redirect */}

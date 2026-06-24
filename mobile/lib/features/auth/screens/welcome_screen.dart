@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -40,9 +42,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     final isLastPage = _currentPage == _totalPages - 1;
 
     return PopScope<Object?>(
-      canPop: isFirstPage,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _goToPrevPage();
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (!isFirstPage) {
+          _goToPrevPage();
+        } else {
+          await SystemNavigator.pop();
+          exit(0);
+        }
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
@@ -169,6 +177,7 @@ class _HeroPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
@@ -188,10 +197,10 @@ class _HeroPage extends StatelessWidget {
 
           Text(
             'Votre santé, augmentée\npar l\'intelligence artificielle.',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w400,
-              color: Color(0xFFB0B7C3),
+              color: isDark ? const Color(0xFFB0B7C3) : AppColors.textSecondary,
               height: 1.5,
               letterSpacing: 0.1,
             ),
@@ -210,13 +219,14 @@ class _ExpertsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         children: [
           const Spacer(flex: 3),
 
-          const _ChatIllustration()
+          _ChatIllustration(isDark: isDark)
               .animate()
               .fadeIn(duration: 600.ms)
               .scale(
@@ -227,10 +237,10 @@ class _ExpertsPage extends StatelessWidget {
 
           Text(
             'Des experts\nà portée de main',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: isDark ? Colors.white : AppColors.textPrimary,
               height: 1.25,
             ),
             textAlign: TextAlign.center,
@@ -240,10 +250,10 @@ class _ExpertsPage extends StatelessWidget {
 
           Text(
             'Consultez des médecins qualifiés\nvia messagerie sécurisée.',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w400,
-              color: Color(0xFF94A3B8),
+              color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
               height: 1.5,
             ),
             textAlign: TextAlign.center,
@@ -261,13 +271,14 @@ class _SecurityPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         children: [
           const Spacer(flex: 3),
 
-          const _ShieldIllustration()
+          _ShieldIllustration(isDark: isDark)
               .animate()
               .fadeIn(duration: 600.ms)
               .scale(
@@ -278,10 +289,10 @@ class _SecurityPage extends StatelessWidget {
 
           Text(
             'Sécurisé &\nConfidentiel',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: isDark ? Colors.white : AppColors.textPrimary,
               height: 1.25,
             ),
             textAlign: TextAlign.center,
@@ -291,10 +302,10 @@ class _SecurityPage extends StatelessWidget {
 
           Text(
             'Vos données sont protégées avec\nles plus hauts standards de\nsécurité.',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w400,
-              color: Color(0xFF94A3B8),
+              color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
               height: 1.5,
             ),
             textAlign: TextAlign.center,
@@ -312,13 +323,14 @@ class _AIPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         children: [
           const Spacer(flex: 3),
 
-          const _PhoneIllustration()
+          _PhoneIllustration(isDark: isDark)
               .animate()
               .fadeIn(duration: 600.ms)
               .scale(
@@ -329,10 +341,10 @@ class _AIPage extends StatelessWidget {
 
           Text(
             'IA à vos côtés\n24h/24',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: isDark ? Colors.white : AppColors.textPrimary,
               height: 1.25,
             ),
             textAlign: TextAlign.center,
@@ -342,10 +354,10 @@ class _AIPage extends StatelessWidget {
 
           Text(
             'Notre IA vous aide à mieux\ncomprendre votre santé et vous oriente.',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w400,
-              color: Color(0xFF94A3B8),
+              color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
               height: 1.5,
             ),
             textAlign: TextAlign.center,
@@ -367,6 +379,7 @@ class _OnboardingHeroLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -384,7 +397,7 @@ class _OnboardingHeroLogo extends StatelessWidget {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF3B82F6).withAlpha(100), // reduced glow
+                      color: (isDark ? const Color(0xFF3B82F6) : AppColors.primary).withAlpha(100), // dynamic glow
                       blurRadius: 35, // smaller blur
                       spreadRadius: 5,
                     ),
@@ -399,14 +412,21 @@ class _OnboardingHeroLogo extends StatelessWidget {
                     curve: Curves.easeInOut,
                   ),
 
-              // N icon — luminance filter removes dark background
+              // N icon — luminance filter removes dark background, matrix maps to green/mint in light mode
               ColorFiltered(
-                colorFilter: const ColorFilter.matrix([
-                  1, 0, 0, 0, 0,
-                  0, 1, 0, 0, 0,
-                  0, 0, 1, 0, 0,
-                  0.2126, 0.7152, 0.0722, 0, 0,
-                ]),
+                colorFilter: isDark
+                    ? const ColorFilter.matrix([
+                        1, 0, 0, 0, 0,
+                        0, 1, 0, 0, 0,
+                        0, 0, 1, 0, 0,
+                        0.2126, 0.7152, 0.0722, 0, 0,
+                      ])
+                    : const ColorFilter.matrix([
+                        0.1, 0.0, 0.1, 0, 0,
+                        0.6, 0.8, 0.6, 0, 0,
+                        0.3, 0.2, 0.3, 0, 0,
+                        0.2126, 0.7152, 0.0722, 0, 0,
+                      ]),
                 child: Image.asset(
                   'assets/images/logo.png',
                   width: 130,
@@ -422,15 +442,21 @@ class _OnboardingHeroLogo extends StatelessWidget {
 
         // NEXORA wordmark
         ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
+          shaderCallback: (bounds) => LinearGradient(
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
-            colors: [
-              Color(0xFFFFFFFF),
-              Color(0xFFE2E8F0),
-              Color(0xFFFFFFFF),
-            ],
-            stops: [0.0, 0.5, 1.0],
+            colors: isDark
+                ? const [
+                    Color(0xFFFFFFFF),
+                    Color(0xFFE2E8F0),
+                    Color(0xFFFFFFFF),
+                  ]
+                : [
+                    AppColors.textPrimary,
+                    AppColors.textPrimary.withAlpha(200),
+                    AppColors.textPrimary,
+                  ],
+            stops: const [0.0, 0.5, 1.0],
           ).createShader(bounds),
           blendMode: BlendMode.srcIn,
           child: const Text(
@@ -453,10 +479,10 @@ class _OnboardingHeroLogo extends StatelessWidget {
           children: [
             _GradientLine(toRight: false),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'Intelligence & Santé',
               style: TextStyle(
-                color: Color(0xFF94A3B8), // Muted grey-blue
+                color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
                 letterSpacing: 1.5,
                 fontWeight: FontWeight.w500,
                 fontSize: 12,
@@ -477,6 +503,7 @@ class _GradientLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: 36,
       height: 1,
@@ -484,7 +511,10 @@ class _GradientLine extends StatelessWidget {
         gradient: LinearGradient(
           begin: toRight ? Alignment.centerLeft : Alignment.centerRight,
           end: toRight ? Alignment.centerRight : Alignment.centerLeft,
-          colors: const [Color(0xFF3B82F6), Colors.transparent], // Blue instead of purple
+          colors: [
+            isDark ? const Color(0xFF3B82F6) : AppColors.primary,
+            Colors.transparent,
+          ],
         ),
       ),
     );
@@ -496,7 +526,8 @@ class _GradientLine extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ChatIllustration extends StatelessWidget {
-  const _ChatIllustration();
+  final bool isDark;
+  const _ChatIllustration({required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -514,7 +545,7 @@ class _ChatIllustration extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF2563EB).withAlpha(40),
+                  color: (isDark ? const Color(0xFF2563EB) : const Color(0xFF10B981)).withAlpha(40),
                   blurRadius: 60,
                   spreadRadius: 10,
                 ),
@@ -529,18 +560,18 @@ class _ChatIllustration extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: const Color(0xFF3B82F6).withAlpha(60),
+                color: (isDark ? const Color(0xFF3B82F6) : AppColors.primary).withAlpha(60),
                 width: 1.5,
               ),
               gradient: RadialGradient(
                 colors: [
-                  const Color(0xFF3B82F6).withAlpha(10),
-                  const Color(0xFF2563EB).withAlpha(25),
+                  (isDark ? const Color(0xFF3B82F6) : AppColors.primary).withAlpha(10),
+                  (isDark ? const Color(0xFF2563EB) : AppColors.primary).withAlpha(25),
                 ],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF38BDF8).withAlpha(15),
+                  color: (isDark ? const Color(0xFF38BDF8) : const Color(0xFF34D399)).withAlpha(15),
                   blurRadius: 20,
                   spreadRadius: -10,
                 )
@@ -561,12 +592,12 @@ class _ChatIllustration extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    const Color(0xFF1D4ED8).withAlpha(160),
-                    const Color(0xFF2563EB).withAlpha(120),
+                    (isDark ? const Color(0xFF1D4ED8) : const Color(0xFF00A566)).withAlpha(160),
+                    (isDark ? const Color(0xFF2563EB) : const Color(0xFF10B981)).withAlpha(120),
                   ],
                 ),
                 border: Border.all(
-                  color: const Color(0xFF3B82F6).withAlpha(70),
+                  color: (isDark ? const Color(0xFF3B82F6) : const Color(0xFF34D399)).withAlpha(70),
                   width: 1,
                 ),
               ),
@@ -579,7 +610,7 @@ class _ChatIllustration extends StatelessWidget {
             bottom: 55,
             left: 35,
             child: CustomPaint(
-              painter: _ChatBubblePainter(),
+              painter: _ChatBubblePainter(isDark: isDark),
               child: SizedBox(
                 width: 120,
                 height: 80,
@@ -609,7 +640,7 @@ class _ChatIllustration extends StatelessWidget {
             left: 5,
             child: _FloatingIconBadge(
               icon: Icons.grid_view_rounded,
-              color: const Color(0xFF3B82F6), // blue
+              color: isDark ? const Color(0xFF3B82F6) : const Color(0xFF10B981), // green/blue
               size: 38,
               delay: 0,
             ),
@@ -619,7 +650,7 @@ class _ChatIllustration extends StatelessWidget {
             right: 4,
             child: _FloatingIconBadge(
               icon: Icons.person_rounded,
-              color: const Color(0xFF6366F1),
+              color: isDark ? const Color(0xFF6366F1) : AppColors.primary,
               size: 38,
               delay: 700,
             ),
@@ -629,7 +660,7 @@ class _ChatIllustration extends StatelessWidget {
             left: 4,
             child: _FloatingIconBadge(
               icon: Icons.chat_bubble_rounded,
-              color: const Color(0xFF0EA5E9), // cyan
+              color: isDark ? const Color(0xFF0EA5E9) : const Color(0xFF059669),
               size: 36,
               delay: 350,
             ),
@@ -639,7 +670,7 @@ class _ChatIllustration extends StatelessWidget {
             right: 5,
             child: _FloatingIconBadge(
               icon: Icons.group_rounded,
-              color: const Color(0xFF6366F1),
+              color: isDark ? const Color(0xFF6366F1) : const Color(0xFF10B981),
               size: 36,
               delay: 1050,
             ),
@@ -653,15 +684,16 @@ class _ChatIllustration extends StatelessWidget {
 class _Dot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: 10,
       height: 10,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: const Color(0xFF93C5FD),
+        color: isDark ? const Color(0xFF93C5FD) : Colors.white,
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF38BDF8).withAlpha(150),
+            color: (isDark ? const Color(0xFF38BDF8) : const Color(0xFF34D399)).withAlpha(150),
             blurRadius: 6,
             spreadRadius: 1,
           ),
@@ -672,6 +704,9 @@ class _Dot extends StatelessWidget {
 }
 
 class _ChatBubblePainter extends CustomPainter {
+  final bool isDark;
+  const _ChatBubblePainter({required this.isDark});
+
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
@@ -692,14 +727,20 @@ class _ChatBubblePainter extends CustomPainter {
     final path = Path.combine(PathOperation.union, bubblePath, tailPath);
 
     final paint = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          Color(0xFF60A5FA), // light blue
-          Color(0xFF2563EB), // blue
-          Color(0xFF1D4ED8), // dark blue
-        ],
+        colors: isDark
+            ? const [
+                Color(0xFF60A5FA), // light blue
+                Color(0xFF2563EB), // blue
+                Color(0xFF1D4ED8), // dark blue
+              ]
+            : [
+                const Color(0xFF34D399),
+                AppColors.primary,
+                const Color(0xFF059669),
+              ],
       ).createShader(Rect.fromLTWH(0, 0, w, h))
       ..style = PaintingStyle.fill;
 
@@ -707,10 +748,12 @@ class _ChatBubblePainter extends CustomPainter {
 
     // Subtle border
     final borderPaint = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF93C5FD), Color(0xFF3B82F6)],
+        colors: isDark
+            ? const [Color(0xFF93C5FD), Color(0xFF3B82F6)]
+            : [const Color(0xFF34D399), AppColors.primary],
       ).createShader(Rect.fromLTWH(0, 0, w, h))
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
@@ -719,7 +762,7 @@ class _ChatBubblePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ChatBubblePainter oldDelegate) => oldDelegate.isDark != isDark;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -727,7 +770,8 @@ class _ChatBubblePainter extends CustomPainter {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ShieldIllustration extends StatelessWidget {
-  const _ShieldIllustration();
+  final bool isDark;
+  const _ShieldIllustration({required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -745,7 +789,7 @@ class _ShieldIllustration extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF4F46E5).withAlpha(40), // Indigo glow
+                  color: (isDark ? const Color(0xFF4F46E5) : const Color(0xFF00A566)).withAlpha(40),
                   blurRadius: 60,
                   spreadRadius: 10,
                 ),
@@ -760,18 +804,18 @@ class _ShieldIllustration extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: const Color(0xFF6366F1).withAlpha(60), // Indigo border
+                color: (isDark ? const Color(0xFF6366F1) : const Color(0xFF10B981)).withAlpha(60),
                 width: 1.5,
               ),
               gradient: RadialGradient(
                 colors: [
-                  const Color(0xFF8B5CF6).withAlpha(10), // Purple-ish
-                  const Color(0xFF4F46E5).withAlpha(25), // Indigo
+                  (isDark ? const Color(0xFF8B5CF6) : const Color(0xFF34D399)).withAlpha(10),
+                  (isDark ? const Color(0xFF4F46E5) : const Color(0xFF00A566)).withAlpha(25),
                 ],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF8B5CF6).withAlpha(15),
+                  color: (isDark ? const Color(0xFF8B5CF6) : const Color(0xFF34D399)).withAlpha(15),
                   blurRadius: 20,
                   spreadRadius: -10,
                 )
@@ -784,7 +828,7 @@ class _ShieldIllustration extends StatelessWidget {
             width: 110,
             height: 130,
             child: CustomPaint(
-              painter: _ShieldPainter(),
+              painter: _ShieldPainter(isDark: isDark),
               child: Center(
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -793,10 +837,10 @@ class _ShieldIllustration extends StatelessWidget {
                     height: 44,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFF4F46E5).withAlpha(40),
+                      color: (isDark ? const Color(0xFF4F46E5) : const Color(0xFF00A566)).withAlpha(40),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF8B5CF6).withAlpha(110),
+                          color: (isDark ? const Color(0xFF8B5CF6) : const Color(0xFF10B981)).withAlpha(110),
                           blurRadius: 18,
                           spreadRadius: 2,
                         ),
@@ -826,7 +870,7 @@ class _ShieldIllustration extends StatelessWidget {
             left: 15,
             child: _FloatingIconBadge(
               icon: Icons.psychology_rounded,
-              color: const Color(0xFF8B5CF6), // Purple
+              color: isDark ? const Color(0xFF8B5CF6) : const Color(0xFF00A566),
               size: 40,
               delay: 200,
             ),
@@ -836,7 +880,7 @@ class _ShieldIllustration extends StatelessWidget {
             right: 15,
             child: _FloatingIconBadge(
               icon: Icons.group_rounded,
-              color: const Color(0xFF6366F1), // Indigo
+              color: isDark ? const Color(0xFF6366F1) : const Color(0xFF10B981),
               size: 40,
               delay: 800,
             ),
@@ -846,7 +890,7 @@ class _ShieldIllustration extends StatelessWidget {
             right: 25,
             child: _FloatingIconBadge(
               icon: Icons.admin_panel_settings_rounded,
-              color: const Color(0xFF8B5CF6), // Purple
+              color: isDark ? const Color(0xFF8B5CF6) : const Color(0xFF059669),
               size: 42,
               delay: 500,
             ),
@@ -858,6 +902,9 @@ class _ShieldIllustration extends StatelessWidget {
 }
 
 class _ShieldPainter extends CustomPainter {
+  final bool isDark;
+  const _ShieldPainter({required this.isDark});
+
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
@@ -880,11 +927,17 @@ class _ShieldPainter extends CustomPainter {
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFF4F46E5).withAlpha(100), // indigo
-            const Color(0xFF6366F1).withAlpha(75),  // indigo lighter
-            const Color(0xFF8B5CF6).withAlpha(55),  // purple
-          ],
+          colors: isDark
+              ? [
+                  const Color(0xFF4F46E5).withAlpha(100), // indigo
+                  const Color(0xFF6366F1).withAlpha(75),  // indigo lighter
+                  const Color(0xFF8B5CF6).withAlpha(55),  // purple
+                ]
+              : [
+                  const Color(0xFF00A566).withAlpha(100),
+                  const Color(0xFF10B981).withAlpha(75),
+                  const Color(0xFF34D399).withAlpha(55),
+                ],
         ).createShader(rect)
         ..style = PaintingStyle.fill,
     );
@@ -893,10 +946,12 @@ class _ShieldPainter extends CustomPainter {
     canvas.drawPath(
       shield,
       Paint()
-        ..shader = const LinearGradient(
+        ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)], // purple → indigo
+          colors: isDark
+              ? const [Color(0xFF8B5CF6), Color(0xFF6366F1)]
+              : [const Color(0xFF34D399), const Color(0xFF00A566)],
         ).createShader(rect)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0
@@ -907,7 +962,7 @@ class _ShieldPainter extends CustomPainter {
     canvas.drawPath(
       shield,
       Paint()
-        ..color = const Color(0xFF818CF8).withAlpha(180) // indigo light
+        ..color = (isDark ? const Color(0xFF818CF8) : const Color(0xFF10B981)).withAlpha(180)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5,
     );
@@ -924,7 +979,7 @@ class _ShieldPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ShieldPainter _) => false;
+  bool shouldRepaint(covariant _ShieldPainter oldDelegate) => oldDelegate.isDark != isDark;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -932,7 +987,8 @@ class _ShieldPainter extends CustomPainter {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _PhoneIllustration extends StatelessWidget {
-  const _PhoneIllustration();
+  final bool isDark;
+  const _PhoneIllustration({required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -951,12 +1007,12 @@ class _PhoneIllustration extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF3B82F6).withAlpha(60),
+                  color: (isDark ? const Color(0xFF3B82F6) : const Color(0xFF10B981)).withAlpha(60),
                   blurRadius: 70,
                   spreadRadius: 10,
                 ),
                 BoxShadow(
-                  color: const Color(0xFF4F46E5).withAlpha(40),
+                  color: (isDark ? const Color(0xFF4F46E5) : const Color(0xFF00A566)).withAlpha(40),
                   blurRadius: 100,
                   spreadRadius: 20,
                 ),
@@ -993,12 +1049,12 @@ class _PhoneIllustration extends StatelessWidget {
                   ],
                 ),
                 border: Border.all(
-                  color: const Color(0xFF3B82F6).withAlpha(160), // strong blue edge
+                  color: (isDark ? const Color(0xFF3B82F6) : AppColors.primary).withAlpha(160), // dynamic edge
                   width: 2,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF3B82F6).withAlpha(50),
+                    color: (isDark ? const Color(0xFF3B82F6) : AppColors.primary).withAlpha(50),
                     blurRadius: 30,
                     spreadRadius: -5,
                   ),
@@ -1048,11 +1104,11 @@ class _PhoneIllustration extends StatelessWidget {
                     const SizedBox(height: 14),
 
                     // List items matching the reference design (reduced to 3 to fix overflow)
-                    _PhoneListItem(iconColor: const Color(0xFF3B82F6)),
+                    _PhoneListItem(iconColor: isDark ? const Color(0xFF3B82F6) : const Color(0xFF10B981)),
                     const SizedBox(height: 10),
-                    _PhoneListItem(iconColor: const Color(0xFF6366F1), width: 70),
+                    _PhoneListItem(iconColor: isDark ? const Color(0xFF6366F1) : AppColors.primary, width: 70),
                     const SizedBox(height: 10),
-                    _PhoneListItem(iconColor: const Color(0xFF8B5CF6)),
+                    _PhoneListItem(iconColor: isDark ? const Color(0xFF8B5CF6) : const Color(0xFF34D399)),
                   ],
                 ),
               ),
@@ -1064,10 +1120,10 @@ class _PhoneIllustration extends StatelessWidget {
           Positioned(
             top: 45,
             left: -5,
-            child: const _GlassChatBadge(
+            child: _GlassChatBadge(
               icon: Icons.forum_rounded,
               iconColor: Colors.white,
-              color: Color(0xFF4F46E5), // Indigo
+              color: isDark ? const Color(0xFF4F46E5) : const Color(0xFF00A566),
               tailLeft: false, // Tail points to bottom-right
               delay: 0,
             ),
@@ -1077,10 +1133,10 @@ class _PhoneIllustration extends StatelessWidget {
           Positioned(
             bottom: 30,
             right: -10,
-            child: const _GlassChatBadge(
+            child: _GlassChatBadge(
               icon: Icons.favorite_rounded,
-              iconColor: Color(0xFFF472B6), // Pink-400
-              color: Color(0xFFDB2777), // Pink-600
+              iconColor: isDark ? const Color(0xFFF472B6) : Colors.white,
+              color: isDark ? const Color(0xFFDB2777) : const Color(0xFF10B981),
               size: 56, // Slightly reduced to fit gracefully
               tailLeft: true, // Tail points to bottom-left
               delay: 800,
@@ -1279,6 +1335,7 @@ class _WelcomeBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SizedBox(
       width: size.width,
       height: size.height,
@@ -1287,7 +1344,7 @@ class _WelcomeBackground extends StatelessWidget {
           // Background Waves
           Positioned.fill(
             child: CustomPaint(
-              painter: _GlowingWavesPainter(),
+              painter: _GlowingWavesPainter(isDark: isDark),
             ),
           ),
           // Deep subtle glows in the corners to avoid washing out the center
@@ -1297,7 +1354,7 @@ class _WelcomeBackground extends StatelessWidget {
             child: BlurOrb(
               width: size.width * 0.8,
               height: size.height * 0.4,
-              color: const Color(0x151D4ED8), // very dark blue
+              color: isDark ? const Color(0x151D4ED8) : const Color(0x1A00A566), // dynamic orbs
               sigma: 120,
             ),
           ),
@@ -1307,7 +1364,7 @@ class _WelcomeBackground extends StatelessWidget {
             child: BlurOrb(
               width: size.width * 0.8,
               height: size.height * 0.4,
-              color: const Color(0x0A2563EB), // subtle blue
+              color: isDark ? const Color(0x0A2563EB) : const Color(0x1210B981), // dynamic orbs
               sigma: 100,
             ),
           ),
@@ -1318,6 +1375,9 @@ class _WelcomeBackground extends StatelessWidget {
 }
 
 class _GlowingWavesPainter extends CustomPainter {
+  final bool isDark;
+  const _GlowingWavesPainter({required this.isDark});
+
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
@@ -1351,14 +1411,21 @@ class _GlowingWavesPainter extends CustomPainter {
 
     // Draw a few overlapping waves in the middle-bottom (around the text area)
     final centerY = h * 0.58;
-    drawWave(centerY - 10, 25, 0.0, const Color(0xFF2563EB).withAlpha(25), 2.5, 10);
-    drawWave(centerY + 5, 30, 2.0, const Color(0xFF38BDF8).withAlpha(20), 1.5, 8);
-    drawWave(centerY, 15, 4.0, const Color(0xFF4F46E5).withAlpha(15), 4, 15);
-    drawWave(centerY + 20, 25, 1.0, const Color(0xFF3B82F6).withAlpha(15), 2, 8);
+    if (isDark) {
+      drawWave(centerY - 10, 25, 0.0, const Color(0xFF2563EB).withAlpha(25), 2.5, 10);
+      drawWave(centerY + 5, 30, 2.0, const Color(0xFF38BDF8).withAlpha(20), 1.5, 8);
+      drawWave(centerY, 15, 4.0, const Color(0xFF4F46E5).withAlpha(15), 4, 15);
+      drawWave(centerY + 20, 25, 1.0, const Color(0xFF3B82F6).withAlpha(15), 2, 8);
+    } else {
+      drawWave(centerY - 10, 25, 0.0, const Color(0xFF10B981).withAlpha(25), 2.5, 10);
+      drawWave(centerY + 5, 30, 2.0, const Color(0xFF34D399).withAlpha(20), 1.5, 8);
+      drawWave(centerY, 15, 4.0, const Color(0xFF00A566).withAlpha(15), 4, 15);
+      drawWave(centerY + 20, 25, 1.0, const Color(0xFF059669).withAlpha(15), 2, 8);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _GlowingWavesPainter oldDelegate) => oldDelegate.isDark != isDark;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

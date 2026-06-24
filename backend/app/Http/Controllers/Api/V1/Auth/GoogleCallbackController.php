@@ -42,6 +42,11 @@ class GoogleCallbackController extends Controller
             ]);
         }
 
+        $result['user']->update([
+            'last_activity_at'   => now(),
+            'last_activity_type' => 'Connexion Google',
+        ]);
+
         return $this->redirectToFrontend([
             'access_token'  => $result['tokens']['access_token'],
             'refresh_token' => $result['tokens']['refresh_token'],

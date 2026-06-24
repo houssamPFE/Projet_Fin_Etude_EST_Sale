@@ -104,3 +104,37 @@
 .am audio {
   display: none;
 }
+
+/* ── Cream Theme Overrides ── */
+body.theme-cream .am-btn {
+  background: var(--gradient-primary) !important;
+  box-shadow: 0 4px 14px rgba(0, 165, 102, 0.35) !important;
+}
+body.theme-cream .am-btn:hover:not(:disabled) {
+  box-shadow: 0 6px 18px rgba(0, 165, 102, 0.5) !important;
+}
+body.theme-cream .am--ai .am-btn {
+  background: linear-gradient(135deg, #00A566 0%, #059669 100%) !important;
+  box-shadow: 0 4px 14px rgba(0, 165, 102, 0.25) !important;
+}
+body.theme-cream .am--expert .am-btn {
+  background: linear-gradient(135deg, #0d9488 0%, #00a877 100%) !important;
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.25) !important;
+}
+body.theme-cream .am-bar--filled {
+  background: linear-gradient(180deg, #FFFFFF 0%, #D1FAE5 100%) !important;
+}
+
+body.theme-cream .am--ai .am-bar,
+body.theme-cream .am--expert .am-bar {
+  background: rgba(0, 165, 102, 0.18) !important;
+}
+body.theme-cream .am--ai .am-bar--filled,
+body.theme-cream .am--expert .am-bar--filled {
+  background: linear-gradient(180deg, #00A566 0%, #008753 100%) !important;
+  box-shadow: none !important;
+}
+body.theme-cream .am--ai .am-time,
+body.theme-cream .am--expert .am-time {
+  color: #00A566 !important;
+}

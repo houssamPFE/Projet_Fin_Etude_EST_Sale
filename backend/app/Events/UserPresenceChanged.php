@@ -19,15 +19,20 @@ class UserPresenceChanged implements ShouldBroadcastNow
 
     public function __construct(
         public int $userId,
-        public int $conversationId,
+        public ?int $conversationId,
         public bool $isOnline,
+        public ?int $expertId = null,
     ) {}
 
     public function broadcastOn(): array
     {
-        return [
-            new PrivateChannel("conversation.{$this->conversationId}"),
-        ];
+        if ($this->conversationId !== null) {
+            return [new PrivateChannel("conversation.{$this->conversationId}")];
+        }
+
+        // Expert-presence channel: lets any authenticated patient subscribed to
+        // expert-presence.{expertId} receive instant online/offline updates.
+        return [new PrivateChannel("expert-presence.{$this->expertId}")];
     }
 
     public function broadcastAs(): string

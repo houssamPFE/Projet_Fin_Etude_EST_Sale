@@ -31,6 +31,7 @@ class ConversationListController extends Controller
                 'messages',
                 // Use the relationship name alias so ConversationResource::whenCounted('unreadMessages') works
                 'unreadMessages' => fn ($q) => $q
+                    ->whereNull('read_at')
                     ->whereIn('sender_type', $unreadSenderTypes),
             ]);
 

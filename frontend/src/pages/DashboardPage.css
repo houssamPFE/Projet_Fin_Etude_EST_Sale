@@ -83,6 +83,28 @@
   flex-wrap: wrap;
 }
 
+/* ── Hero buttons ── */
+.dashboard-btn-ai {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 28px; border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  border: none; color: #fff;
+  font-size: 0.9375rem; font-weight: 700; font-family: var(--font-sans);
+  cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 4px 18px rgba(99,102,241,0.35);
+}
+.dashboard-btn-ai:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(99,102,241,0.5); }
+
+.dashboard-btn-experts {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 28px; border-radius: var(--radius-xl);
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-primary);
+  font-size: 0.9375rem; font-weight: 700; font-family: var(--font-sans);
+  text-decoration: none; transition: all 0.2s;
+}
+.dashboard-btn-experts:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
+
 /* ── Features ── */
 .dashboard-section-title {
   font-family: var(--font-serif);
@@ -291,4 +313,107 @@
   .dashboard-grid { grid-template-columns: 1fr; }
   .dashboard-hero { padding: var(--space-xl) 0; }
   .dashboard-hero-actions { flex-direction: column; align-items: stretch; }
+}
+
+/* ── Cream Theme Overrides ── */
+body.theme-cream .dashboard-hero::before {
+  background: radial-gradient(ellipse, rgba(0, 165, 102, 0.08) 0%, transparent 70%);
+}
+
+body.theme-cream .dashboard-hero-badge {
+  background: var(--hero-badge-bg);
+  border-color: var(--hero-badge-border);
+  color: var(--hero-badge-text);
+  box-shadow: 0 0 20px rgba(0, 165, 102, 0.05);
+}
+
+body.theme-cream .dashboard-hero-title {
+  color: var(--text-primary);
+}
+
+body.theme-cream .dashboard-hero-accent {
+  background: linear-gradient(135deg, #00A566 0%, #00a877 50%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+body.theme-cream .dashboard-btn-ai {
+  background: var(--gradient-blue);
+  box-shadow: 0 4px 18px rgba(0, 165, 102, 0.2);
+  color: #fff;
+}
+
+body.theme-cream .dashboard-btn-ai:hover {
+  box-shadow: 0 6px 24px rgba(0, 165, 102, 0.35);
+}
+
+body.theme-cream .dashboard-btn-experts {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+}
+
+body.theme-cream .dashboard-btn-experts:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-hover);
+}
+
+body.theme-cream .dashboard-section-title {
+  background: var(--gradient-text);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+body.theme-cream .feature-card {
+  background: var(--bg-card);
+  border-color: var(--border-default);
+}
+
+body.theme-cream .feature-card:hover {
+  border-color: rgba(0, 165, 102, 0.25);
+  box-shadow:
+    0 0 0 1px rgba(0, 165, 102, 0.1),
+    0 24px 48px rgba(0, 0, 0, 0.02),
+    0 0 40px rgba(0, 165, 102, 0.06);
+}
+
+body.theme-cream .card-link {
+  color: #00A566;
+}
+body.theme-cream .card-link:hover {
+  color: #008753;
+}
+
+body.theme-cream .card-list-item:hover {
+  background: rgba(0, 165, 102, 0.06);
+  border-color: rgba(0, 165, 102, 0.1);
+}
+
+body.theme-cream .notif-count {
+  background: var(--gradient-blue);
+  box-shadow: 0 0 10px rgba(0, 165, 102, 0.3);
+}
+
+body.theme-cream .notif-item--unread {
+  background: rgba(0, 165, 102, 0.05);
+  border-left-color: #00A566;
+  box-shadow: inset 0 0 20px rgba(0, 165, 102, 0.03);
+}
+
+body.theme-cream .dashboard-cta-banner {
+  background: linear-gradient(135deg, rgba(0, 165, 102, 0.08) 0%, rgba(0, 168, 119, 0.05) 100%);
+  border-color: rgba(0, 165, 102, 0.15);
+}
+
+body.theme-cream .dashboard-cta-banner::before {
+  background: radial-gradient(circle, rgba(0, 165, 102, 0.1), transparent 60%);
+}
+
+body.theme-cream .dashboard-cta-banner h2 {
+  background: var(--gradient-text);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/screens/welcome_screen.dart';
+import '../../features/auth/screens/splash_screen.dart';
+import '../../features/maintenance/maintenance_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/otp_screen.dart';
@@ -19,6 +21,8 @@ import '../../features/chat/screens/chat_screen.dart';
 import '../../features/chat/screens/conversations_screen.dart';
 import '../../features/chat/screens/ai_triage_screen.dart';
 import '../../features/home/screens/notifications_screen.dart';
+import '../../features/payment/screens/upgrade_screen.dart';
+import '../../features/payment/screens/payment_webview_screen.dart';
 import '../../shared/widgets/main_layout.dart';
 import '../services/token_storage.dart';
 
@@ -27,7 +31,8 @@ import '../services/token_storage.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 abstract class AppRoutes {
-  static const welcome        = '/';
+  static const splash         = '/';
+  static const welcome        = '/welcome';
   static const login          = '/login';
   static const register       = '/register';
   static const otp            = '/otp';
@@ -44,6 +49,10 @@ abstract class AppRoutes {
   static const profile        = '/profile';
   static const security       = '/security';
   static const chat           = '/chat';
+  static const maintenance    = '/maintenance';
+  static const upgrade        = '/upgrade';
+  static const paymentWebview = '/payment/webview';
+  static const paymentResult  = '/payment/result';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -65,6 +74,7 @@ void notifyAuthChanged() => _authChangeNotifier.value++;
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _publicRoutes = {
+  AppRoutes.splash,
   AppRoutes.welcome,
   AppRoutes.login,
   AppRoutes.register,
@@ -72,6 +82,7 @@ const _publicRoutes = {
   AppRoutes.forgotPassword,
   AppRoutes.resetPassword,
   AppRoutes.twoFactor,
+  AppRoutes.maintenance,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,20 +94,36 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: navigatorKey,
-    initialLocation: AppRoutes.welcome,
+    initialLocation: AppRoutes.splash,
     refreshListenable: _authChangeNotifier,
     debugLogDiagnostics: false,
 
     redirect: (context, state) async {
-      final token = await storage.read();
-      final isAuth = token != null;
+      // Use the refresh token (30-day TTL) as the session indicator, NOT the
+      // access token (15-min TTL).  The access token is almost always expired
+      // when the app is resumed after a force-kill; the _RefreshInterceptor will
+      // silently obtain a new one on the first API call.  Checking the access
+      // token here means any gap > 15 min sends the user back to onboarding.
+      final refreshToken = await storage.readRefreshToken();
+      final isAuth = refreshToken != null;
       final isPublic = _publicRoutes.contains(state.matchedLocation);
 
       if (!isAuth && !isPublic) return AppRoutes.welcome;
+
+      // Prevent logged-in users from visiting onboarding/guest screens:
+      if (isAuth && (state.matchedLocation == AppRoutes.welcome ||
+                     state.matchedLocation == AppRoutes.login ||
+                     state.matchedLocation == AppRoutes.register)) {
+        return AppRoutes.home;
+      }
       return null;
     },
 
     routes: [
+      GoRoute(
+        path: AppRoutes.splash,
+        builder: (_, _) => const SplashScreen(),
+      ),
       GoRoute(
         path: AppRoutes.welcome,
         builder: (_, _) => const WelcomeScreen(),
@@ -133,6 +160,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           final token = state.extra! as String;
           return TwoFactorScreen(twoFactorToken: token);
         },
+      ),
+      GoRoute(
+        path: AppRoutes.maintenance,
+        builder: (_, _) => const MaintenanceScreen(),
       ),
 
       // ─────────────────────────────────────────────────────────────────────
@@ -235,6 +266,50 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const SecurityScreen(),
       ),
       GoRoute(
+        path: AppRoutes.upgrade,
+        pageBuilder: (context, state) {
+          final reason = state.extra is Map
+              ? (state.extra as Map)['reason'] as String?
+              : null;
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: UpgradeScreen(reason: reason),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.05),
+                    end: Offset.zero,
+                  ).animate(CurveTween(curve: Curves.easeOutQuart).animate(animation)),
+                  child: child,
+                ),
+              );
+            },
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.paymentWebview,
+        builder: (context, state) {
+          final args = state.extra! as Map<String, dynamic>;
+          return PaymentWebviewScreen(
+            url: args['url'] as String,
+            planId: args['planId'] as String,
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.paymentResult,
+        builder: (context, state) {
+          final args = state.extra! as Map<String, dynamic>;
+          return PaymentResultScreen(
+            success: args['success'] as bool,
+            planId: args['planId'] as String,
+          );
+        },
+      ),
+      GoRoute(
         path: AppRoutes.chat,
         pageBuilder: (context, state) {
           final args = state.extra! as Map<String, dynamic>;
@@ -248,6 +323,11 @@ final routerProvider = Provider<GoRouter>((ref) {
               online:         args['online']         as bool? ?? true,
               isAi:           args['isAi']           as bool? ?? false,
               conversationId: args['conversationId'] as int?,
+              avatarUrl:      args['avatarUrl']      as String?,
+              isValidated:    args['isValidated']    as bool? ?? false,
+              isClosed:       args['isClosed']       as bool? ?? false,
+              hasExpert:      args['hasExpert']      as bool? ?? false,
+              existingRating: args['existingRating'] as int?,
             ),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0);

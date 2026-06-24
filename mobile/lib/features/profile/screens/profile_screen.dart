@@ -7,6 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -15,12 +16,14 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_gradients.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/theme_provider.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../auth/models/auth_response.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/current_user_provider.dart';
+import '../../payment/models/plan_model.dart';
 
-const _kAvatarColor = Color(0xFF6366F1);
+Color get _kAvatarColor => AppColors.primary;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ProfileScreen
@@ -137,6 +140,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  void _cancelEdit() {
+    setState(() {
+      _isEditing = false;
+      _controllersHydrated = false;
+      _saveError = null;
+    });
+  }
+
   Future<void> _onAvatarTap() async {
     final picker = ImagePicker();
     final choice = await showModalBottomSheet<ImageSource>(
@@ -160,13 +171,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined,
+              leading: Icon(Icons.photo_library_outlined,
                   color: AppColors.primaryLight),
               title: Text('Galerie photo', style: AppTextStyles.titleSmall),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt_outlined,
+              leading: Icon(Icons.camera_alt_outlined,
                   color: AppColors.primaryLight),
               title: Text('Prendre une photo', style: AppTextStyles.titleSmall),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
@@ -186,14 +197,41 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
     if (file == null) return;
 
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: file.path,
+      maxHeight: 600,
+      maxWidth: 600,
+      compressQuality: 85,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Recadrer la photo',
+          toolbarColor: AppColors.primary,
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+          activeControlsWidgetColor: AppColors.primary,
+        ),
+        IOSUiSettings(
+          title: 'Recadrer la photo',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+          doneButtonTitle: 'Terminer',
+          cancelButtonTitle: 'Annuler',
+        ),
+      ],
+    );
+
+    if (croppedFile == null) return;
+
     // Show local preview immediately — survives navigation via provider
-    ref.read(localAvatarPathProvider.notifier).state = file.path;
+    ref.read(localAvatarPathProvider.notifier).state = croppedFile.path;
     setState(() => _isUploadingAvatar = true);
     try {
       final dio = ref.read(dioProvider);
       final formData = FormData.fromMap({
         'avatar': await MultipartFile.fromFile(
-          file.path,
+          croppedFile.path,
           filename: 'avatar.jpg',
         ),
       });
@@ -337,7 +375,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _ProfileBackground(size: size),
           SafeArea(
             child: userAsync.when(
-              loading: () => const Center(
+              loading: () => Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
               ),
               error: (e, s) => _ErrorState(
@@ -360,6 +398,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   onlineVisible: _onlineVisible,
                   saveError: _saveError,
                   onToggleEdit: _toggleEdit,
+                  onCancelEdit: _cancelEdit,
                   onAvatarTap: _isEditing ? _onAvatarTap : null,
                   onPushChanged: _onPushChanged,
                   onEmailChanged: _onEmailChanged,
@@ -394,6 +433,7 @@ class _ProfileContent extends StatelessWidget {
   final bool onlineVisible;
   final String? saveError;
   final VoidCallback onToggleEdit;
+  final VoidCallback onCancelEdit;
   final VoidCallback? onAvatarTap;
   final ValueChanged<bool> onPushChanged;
   final ValueChanged<bool> onEmailChanged;
@@ -415,6 +455,7 @@ class _ProfileContent extends StatelessWidget {
     required this.onlineVisible,
     required this.saveError,
     required this.onToggleEdit,
+    required this.onCancelEdit,
     required this.onAvatarTap,
     required this.onPushChanged,
     required this.onEmailChanged,
@@ -440,6 +481,7 @@ class _ProfileContent extends StatelessWidget {
             isEditing: isEditing,
             isSaving: isSaving,
             onToggleEdit: onToggleEdit,
+            onCancelEdit: onCancelEdit,
           ),
         ).animate().fadeIn(duration: 400.ms),
         Expanded(
@@ -468,7 +510,12 @@ class _ProfileContent extends StatelessWidget {
                       end: const Offset(1, 1),
                       curve: Curves.easeOut,
                     ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
+                _PlanCard(user: user)
+                    .animate()
+                    .fadeIn(delay: 130.ms, duration: 500.ms)
+                    .slideY(begin: 0.08, end: 0, curve: Curves.easeOut),
+                const SizedBox(height: 20),
                 _InfoCard(
                   nameController: nameController,
                   phoneController: phoneController,
@@ -535,6 +582,148 @@ class _ProfileContent extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Plan card — subscription status shown in profile
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PlanCard extends StatelessWidget {
+  final AuthUser user;
+  const _PlanCard({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = kPlans.firstWhere(
+      (p) => p.id == user.plan,
+      orElse: () => kPlans.first,
+    );
+    final isPaid = user.plan != 'free';
+    final expiresAt = user.planExpiresAt;
+    final daysLeft = expiresAt != null
+        ? expiresAt.difference(DateTime.now()).inDays
+        : null;
+
+    return GestureDetector(
+      onTap: isPaid ? null : () => context.push(AppRoutes.upgrade),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: plan.accentColor.withAlpha(14),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: plan.accentColor.withAlpha(60)),
+        ),
+        child: Row(
+          children: [
+            // Plan icon
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: plan.accentColor.withAlpha(22),
+              ),
+              child: Icon(
+                isPaid ? Icons.workspace_premium_rounded : Icons.bolt_outlined,
+                size: 22,
+                color: plan.accentColor,
+              ),
+            ),
+            const SizedBox(width: 14),
+
+            // Plan info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Plan ${plan.name}',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: plan.accentColor.withAlpha(22),
+                          borderRadius: BorderRadius.circular(99),
+                          border: Border.all(color: plan.accentColor.withAlpha(50)),
+                        ),
+                        child: Text(
+                          isPaid ? 'Actif' : 'Gratuit',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: plan.accentColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  if (isPaid)
+                    Text(
+                      '${user.consultationCredits} crédit${user.consultationCredits != 1 ? 's' : ''} restant${user.consultationCredits != 1 ? 's' : ''}'
+                      '${daysLeft != null ? ' · Expire dans $daysLeft j' : ''}',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    )
+                  else
+                    Text(
+                      'Passez à Pro ou Premium pour consulter un médecin',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // CTA
+            if (!isPaid)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  gradient: AppGradients.button,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Upgrader',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              )
+            else if (daysLeft != null && daysLeft <= 5)
+              GestureDetector(
+                onTap: () => context.push(AppRoutes.upgrade),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withAlpha(18),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFF59E0B).withAlpha(60)),
+                  ),
+                  child: const Text(
+                    'Renouveler',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFF59E0B),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Background
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -546,6 +735,16 @@ class _ProfileBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        // Top-left purple/lavender gradient glow (matching experts page)
+        Positioned(
+          top: -size.height * 0.1,
+          left: -size.width * 0.2,
+          child: BlurOrb(
+            width: size.width * 0.75,
+            height: size.height * 0.4,
+            color: const Color(0x328B5CF6),
+          ),
+        ),
         Positioned(
           top: -size.height * 0.05,
           right: -size.width * 0.20,
@@ -586,11 +785,13 @@ class _ProfileHeader extends StatelessWidget {
   final bool isEditing;
   final bool isSaving;
   final VoidCallback onToggleEdit;
+  final VoidCallback onCancelEdit;
 
   const _ProfileHeader({
     required this.isEditing,
     required this.isSaving,
     required this.onToggleEdit,
+    required this.onCancelEdit,
   });
 
   @override
@@ -599,6 +800,38 @@ class _ProfileHeader extends StatelessWidget {
       children: [
         Text('Mon Profil', style: AppTextStyles.headlineSmall),
         const Spacer(),
+        if (isEditing) ...[
+          GestureDetector(
+            onTap: isSaving ? null : onCancelEdit,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Annuler',
+                    style: AppTextStyles.labelMedium.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
         GestureDetector(
           onTap: isSaving ? null : onToggleEdit,
           child: AnimatedContainer(
@@ -694,13 +927,13 @@ class _AvatarSection extends StatelessWidget {
             Container(
               width: 136,
               height: 136,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: AppGradients.primary,
               ),
               padding: const EdgeInsets.all(2.5),
               child: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.card,
                 ),
@@ -896,7 +1129,7 @@ class _InfoCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.info_outline_rounded,
                       size: 13,
                       color: AppColors.textTertiary,
@@ -1052,7 +1285,7 @@ class _SectionLabel extends StatelessWidget {
 // Settings card
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _SettingsCard extends StatelessWidget {
+class _SettingsCard extends ConsumerWidget {
   final bool notifPush;
   final bool notifEmail;
   final String language;
@@ -1073,8 +1306,26 @@ class _SettingsCard extends StatelessWidget {
     required this.onLanguageTap,
   });
 
+  void _showThemePicker(BuildContext context, WidgetRef ref) async {
+    final themeNotifier = ref.read(themeProvider.notifier);
+    final themePreset = ref.read(themeProvider);
+    final picked = await showModalBottomSheet<AppThemeMode>(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _ThemePicker(current: themePreset),
+    );
+    if (picked != null) {
+      await themeNotifier.setTheme(picked);
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themePreset = ref.watch(themeProvider);
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -1106,20 +1357,20 @@ class _SettingsCard extends StatelessWidget {
           ),
           Container(height: 1, color: AppColors.divider),
           _NavRow(
-            icon: Icons.language_rounded,
-            label: 'Langue',
+            icon: Icons.palette_outlined,
+            label: 'Thème de l\'application',
             isLast: true,
-            onTap: onLanguageTap,
+            onTap: () => _showThemePicker(context, ref),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  language == 'ar' ? 'العربية' : 'Français',
+                  themePreset.mode == AppThemeMode.cream ? 'Menthe Crème' : 'Sombre',
                   style: AppTextStyles.labelMedium
                       .copyWith(color: AppColors.textSecondary),
                 ),
                 const SizedBox(width: 6),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
                   color: AppColors.textTertiary,
                   size: 18,
@@ -1220,7 +1471,7 @@ class _NavRow extends StatelessWidget {
               child: Text(label, style: AppTextStyles.titleSmall),
             ),
             trailing ??
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
                   color: AppColors.textTertiary,
                   size: 18,
@@ -1509,8 +1760,17 @@ class _ToastNotificationState extends State<_ToastNotification>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = widget.success ? AppColors.success : AppColors.error;
-    final bg = widget.success ? AppColors.successBg : AppColors.errorBg;
+    
+    final bg = isDark
+        ? (widget.success ? AppColors.successBg : AppColors.errorBg)
+        : (widget.success ? const Color(0xFFEAF7F0) : const Color(0xFFFDF2F2));
+        
+    final textColor = isDark
+        ? Colors.white
+        : (widget.success ? const Color(0xFF0D5331) : const Color(0xFF8C1D1D));
+        
     final icon =
         widget.success ? Icons.check_circle_rounded : Icons.error_rounded;
 
@@ -1530,16 +1790,16 @@ class _ToastNotificationState extends State<_ToastNotification>
               decoration: BoxDecoration(
                 color: bg,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withAlpha(80)),
+                border: Border.all(color: isDark ? color.withAlpha(80) : color.withAlpha(120)),
                 boxShadow: [
                   BoxShadow(
-                    color: color.withAlpha(40),
+                    color: isDark ? color.withAlpha(40) : color.withAlpha(20),
                     blurRadius: 20,
                     spreadRadius: -4,
                     offset: const Offset(0, 6),
                   ),
                   BoxShadow(
-                    color: Colors.black.withAlpha(60),
+                    color: Colors.black.withAlpha(isDark ? 60 : 30),
                     blurRadius: 24,
                     spreadRadius: -6,
                     offset: const Offset(0, 8),
@@ -1552,7 +1812,7 @@ class _ToastNotificationState extends State<_ToastNotification>
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: color.withAlpha(20),
+                      color: isDark ? color.withAlpha(20) : color.withAlpha(30),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(icon, color: color, size: 20),
@@ -1562,7 +1822,7 @@ class _ToastNotificationState extends State<_ToastNotification>
                     child: Text(
                       widget.message,
                       style: AppTextStyles.titleSmall.copyWith(
-                        color: AppColors.textPrimary,
+                        color: textColor,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1779,7 +2039,7 @@ class _HelpSheet extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textTertiary),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textTertiary),
                 ],
               ),
             ),
@@ -1869,7 +2129,7 @@ class _AboutSheet extends StatelessWidget {
                   Icon(icon, size: 20, color: AppColors.textSecondary),
                   const SizedBox(width: 16),
                   Expanded(child: Text(label, style: AppTextStyles.titleSmall)),
-                  const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textTertiary),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textTertiary),
                 ],
               ),
             ),
@@ -1886,3 +2146,86 @@ class _AboutSheet extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Theme picker bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ThemePicker extends StatelessWidget {
+  final AppThemePreset current;
+  const _ThemePicker({required this.current});
+
+  static final _themes = [
+    (AppThemeMode.cream, 'Menthe Crème (Par défaut)', 'Thème clair crème et menthe'),
+    (AppThemeMode.dark, 'Sombre', 'Thème sombre violet/indigo'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        Center(
+          child: Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text('Thème de l\'application', style: AppTextStyles.titleMedium),
+        ),
+        const SizedBox(height: 8),
+        for (final (mode, label, description) in _themes) ...[
+          InkWell(
+            onTap: () => Navigator.pop(context, mode),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(label, style: AppTextStyles.titleSmall),
+                        const SizedBox(height: 2),
+                        Text(
+                          description,
+                          style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: current.mode == mode
+                            ? AppColors.primary
+                            : AppColors.border,
+                        width: current.mode == mode ? 6 : 2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Container(height: 1, color: AppColors.divider),
+        ],
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+

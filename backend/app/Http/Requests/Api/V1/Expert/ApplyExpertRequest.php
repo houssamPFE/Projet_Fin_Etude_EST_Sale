@@ -18,8 +18,8 @@ class ApplyExpertRequest extends FormRequest
         return [
             'category_id'    => ['required', 'exists:categories,id'],
             'bio'            => ['nullable', 'string', 'max:2000'],
+            'city'           => ['nullable', 'string', 'max:100'],
             'certifications' => ['nullable', 'array'],
-            'hourly_rate'    => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
 
             // Documents (at least one required — ID card)
             'documents'        => ['required', 'array', 'min:1', 'max:10'],
@@ -40,7 +40,6 @@ class ApplyExpertRequest extends FormRequest
             'documents.*.file.max'     => 'Le fichier ne doit pas dépasser 5 Mo.',
             'documents.*.type.required' => 'Le type de document est obligatoire.',
             'documents.*.type.in'      => 'Le type de document est invalide.',
-            'hourly_rate.numeric'      => 'Le tarif horaire doit être un nombre.',
             'bio.max'                  => 'La bio ne doit pas dépasser 2000 caractères.',
         ];
     }

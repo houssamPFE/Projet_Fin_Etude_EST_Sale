@@ -1,0 +1,129 @@
+{
+  "name": "Workflow 7 — Conversation Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "summarize-conversation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w7-webhook",
+      "name": "Receive Summary Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-800, 300],
+      "webhookId": "w7-summarize-conversation"
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookData = $input.first().json;\n\n// ─── Security: verify X-N8N-Secret header ─────────────────────────────\nconst receivedSecret = webhookData.headers?.['x-n8n-secret']\n                    || webhookData.headers?.['X-N8N-Secret']\n                    || '';\nconst expectedSecret = 'change-me-in-production';\n\nif (receivedSecret !== expectedSecret) {\n  throw new Error('401: Invalid X-N8N-Secret header.');\n}\n\nconst body = webhookData.body || webhookData;\n\nconst conversationId = body.conversation_id;\nconst categoryId     = body.category_id || null;\nconst messages       = body.messages || [];\n\nif (!conversationId || !messages.length) {\n  throw new Error('400: Missing conversation_id or messages.');\n}\n\nreturn [{\n  json: {\n    conversationId,\n    categoryId,\n    messages,\n    groqModel:   'llama-3.3-70b-versatile',\n    groqBaseUrl: 'https://api.groq.com/openai/v1',\n  }\n}];"
+      },
+      "id": "w7-validate",
+      "name": "Validate Auth & Extract Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-576, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst systemPrompt = `Tu es un assistant médical. Tu dois résumer une consultation médicale de manière concise et professionnelle.\n\nRÈGLES :\n- Résumé en 2-4 phrases maximum\n- Mentionne : le motif principal de consultation, les conseils donnés par l'IA, et si un médecin a été consulté\n- Ton professionnel et neutre\n- Si la conversation est trop courte ou n'a pas de contenu médical, écris un résumé minimal\n- Identifie 2 à 5 thèmes clés (mots ou expressions courtes)\n- Réponds UNIQUEMENT en français\n\nFORMAT DE SORTIE : JSON valide uniquement, sans markdown, sans blocs de code.\n{\n  \"summary\": \"<résumé 2-4 phrases>\",\n  \"key_topics\": [\"<thème1>\", \"<thème2>\"]\n}`;\n\n// Format conversation for the LLM\nconst formatted = data.messages\n  .map(m => {\n    const role = m.role === 'user' ? 'Patient' : m.role === 'ai' ? 'IA Nexora' : 'Médecin';\n    return `[${role}]: ${m.content || '[audio]'}`;\n  })\n  .join('\\n');\n\nconst userMessage = `Voici la conversation médicale à résumer :\\n\\n${formatted}`;\n\nreturn [{\n  json: {\n    ...data,\n    messages: [\n      { role: 'system', content: systemPrompt },\n      { role: 'user',   content: userMessage  }\n    ],\n    temperature: 0.2,\n  }\n}];"
+      },
+      "id": "w7-build-prompt",
+      "name": "Build Summary Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-352, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $json.groqModel, messages: $json.messages, temperature: $json.temperature, max_tokens: 512, response_format: { type: 'json_object' } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "w7-groq-call",
+      "name": "Call Groq AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-128, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "F9PQJn8MUUr6pP28",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const groqReply = $input.first().json;\nconst promptData = $('Build Summary Prompt').first().json;\n\n// ─── Extract raw content ───────────────────────────────────────────────\nlet rawContent = '';\ntry {\n  rawContent = groqReply.choices[0].message.content;\n} catch (e) {\n  throw new Error('Groq response malformed: ' + JSON.stringify(groqReply));\n}\n\n// ─── Parse JSON ────────────────────────────────────────────────────────\nlet parsed = {};\ntry {\n  const cleaned = rawContent.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  // Fallback: use raw text as summary\n  parsed = {\n    summary:    rawContent.slice(0, 500),\n    key_topics: [],\n  };\n}\n\nconst model       = groqReply.model || promptData.groqModel || 'llama-3.3-70b-versatile';\nconst tokensUsed  = groqReply.usage?.total_tokens || 0;\n\nreturn [{\n  json: {\n    summary:     parsed.summary     || '',\n    key_topics:  Array.isArray(parsed.key_topics) ? parsed.key_topics : [],\n    model,\n    tokens_used: tokensUsed,\n  }\n}];"
+      },
+      "id": "w7-parse-response",
+      "name": "Parse Summary Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [96, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "w7-respond",
+      "name": "Respond to Laravel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [320, 300]
+    }
+  ],
+  "connections": {
+    "Receive Summary Request": {
+      "main": [
+        [{ "node": "Validate Auth & Extract Payload", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Auth & Extract Payload": {
+      "main": [
+        [{ "node": "Build Summary Prompt", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Summary Prompt": {
+      "main": [
+        [{ "node": "Call Groq AI", "type": "main", "index": 0 }]
+      ]
+    },
+    "Call Groq AI": {
+      "main": [
+        [{ "node": "Parse Summary Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Summary Response": {
+      "main": [
+        [{ "node": "Respond to Laravel", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "nexora" }]
+}

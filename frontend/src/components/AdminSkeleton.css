@@ -67,6 +67,22 @@
 .sk-setting-desc  { width: 70%; height: 0.75rem; }
 .sk-toggle { width: 44px; height: 24px; border-radius: 24px; flex-shrink: 0; }
 
+/* ── Mini Table (dashboard recent items) ── */
+.sk-mini-wrap { padding: 0 0 0.5rem; }
+.sk-mini-head {
+  padding: 0.4rem 1rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #f1f3f4;
+  display: flex;
+  gap: 12px;
+}
+.sk-mini-row {
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid #f8f9fa;
+  display: flex;
+  gap: 12px;
+}
+
 /* ── Knowledge Base ── */
 .sk-kb { display: flex; flex-direction: column; gap: 0.75rem; }
 .sk-kb-card {

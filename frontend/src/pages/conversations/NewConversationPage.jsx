@@ -1,133 +1,189 @@
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, Stethoscope } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Loader2, Sparkles, Stethoscope, ChevronDown, Check } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { useCategories, useExpert } from '../../hooks/useExperts';
+import { useCategories } from '../../hooks/useExperts';
 import { useCreateConversation } from '../../hooks/useMessages';
+import useAuthStore from '../../stores/authStore';
 import './NewConversationPage.css';
 
+// ── Custom animated specialty picker ─────────────────────────────────────
+function SpecialtyPicker({ categories, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const listRef = useRef(null);
+
+  const selected = categories.find((c) => String(c.id) === String(value));
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="sp-picker" ref={ref}>
+      {/* Trigger */}
+      <button
+        type="button"
+        className={`sp-trigger ${open ? 'sp-trigger--open' : ''}`}
+        onClick={() => {
+          setOpen((v) => !v);
+          // Reset scroll to top so selected item is always visible
+          setTimeout(() => { if (listRef.current) listRef.current.scrollTop = 0; }, 10);
+        }}
+      >
+        <span className="sp-trigger-label">{selected?.name ?? 'Sélectionner…'}</span>
+        <motion.span
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          style={{ display: 'flex' }}
+        >
+          <ChevronDown size={16} />
+        </motion.span>
+      </button>
+
+      {/* Dropdown */}
+      <AnimatePresence>
+        {open && (
+          <motion.ul
+            ref={listRef}
+            className="sp-list"
+            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.97 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {categories.map((c, i) => {
+              const isSelected = String(c.id) === String(value);
+              return (
+                <motion.li
+                  key={c.id}
+                  className={`sp-option ${isSelected ? 'sp-option--selected' : ''}`}
+                  onClick={() => { onChange(c.id); setOpen(false); }}
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.03, duration: 0.15 }}
+                >
+                  <span>{c.name}</span>
+                  {isSelected && <Check size={14} className="sp-check" />}
+                </motion.li>
+              );
+            })}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────
 export default function NewConversationPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const expertId = location.state?.expert_id ?? '';
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const expertId  = location.state?.expert_id ?? '';
+  const user      = useAuthStore((s) => s.user);
+
+  // If a specific doctor is requested, redirect free/creditless users to upgrade
+  useEffect(() => {
+    if (!expertId) return;
+    const canConsult = user?.plan !== 'free' && (user?.consultation_credits ?? 0) > 0;
+    if (!canConsult) {
+      navigate('/upgrade', {
+        replace: true,
+        state: { reason: user?.plan === 'free' ? 'no_plan' : 'no_credits' },
+      });
+    }
+  }, [expertId, user, navigate]);
 
   const { data: categories = [] } = useCategories();
-  const { data: selectedExpert, isLoading: expertLoading } = useExpert(expertId || null);
   const { mutateAsync: createConversation, isPending } = useCreateConversation();
 
-  const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (selectedExpert?.category?.id) {
-      setCategoryId(selectedExpert.category.id);
-      return;
-    }
-
     if (categories.length > 0 && !categoryId) {
-      setCategoryId(categories[0].id);
+      setCategoryId(String(categories[0].id));
     }
-  }, [categories, categoryId, selectedExpert]);
+  }, [categories, categoryId]);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    const resolvedCategoryId = selectedExpert?.category?.id ?? categoryId;
-
-    if (expertId && expertLoading) {
-      toast.error('Chargement du medecin selectionne...');
+  const handleStart = async () => {
+    if (!categoryId) {
+      toast.error('Sélectionnez une spécialité.');
       return;
     }
-
-    if (!resolvedCategoryId) {
-      toast.error('Categorie non disponible, reessayez.');
-      return;
-    }
-
-    if (!message.trim()) {
-      toast.error('Veuillez ecrire votre message initial.');
-      return;
-    }
-
     try {
       const response = await createConversation({
-        category_id: resolvedCategoryId,
-        title: title || undefined,
+        category_id: categoryId,
         expert_id: expertId || undefined,
-        message: message.trim(),
       });
-
       const conversationId = response.data?.data?.conversation?.id;
-      if (!conversationId) throw new Error('No conversation ID returned');
-
-      navigate(`/conversations/${conversationId}`);
-    } catch {
-      toast.error('Impossible de creer la conversation.');
+      if (!conversationId) throw new Error('No ID');
+      navigate(`/conversations/${conversationId}`, { replace: true });
+    } catch (err) {
+      if (err?.response?.status === 402) {
+        navigate('/upgrade', { state: { reason: 'no_credits' } });
+      } else {
+        toast.error('Impossible de démarrer la consultation.');
+      }
     }
   };
 
   return (
     <div className="new-conv-page">
-      <button type="button" className="back-btn" onClick={() => navigate(-1)}>
-        <ArrowLeft size={16} /> Retour
+      <button type="button" className="new-conv-back" onClick={() => navigate(-1)}>
+        <ArrowLeft size={15} />
+        <span>Retour</span>
       </button>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        style={{ width: '100%', maxWidth: 560 }}
+        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        style={{ width: '100%', maxWidth: 480 }}
       >
-        <div className="new-conv-card card">
+        <div className="new-conv-card">
+
           <div className="new-conv-icon">
-            <Stethoscope size={28} />
+            <Stethoscope size={26} />
           </div>
-          <h1 className="new-conv-title">Consultation medicale</h1>
+
+          <h1 className="new-conv-title">Nouvelle consultation</h1>
           <p className="new-conv-subtitle">
-            Decrivez vos symptomes ou votre question. Notre IA medicale vous repond
-            immediatement et escalade vers un medecin si necessaire.
+            Choisissez votre spécialité et commencez à décrire vos symptômes directement dans le chat.
           </p>
 
-          <form onSubmit={handleSubmit} className="new-conv-form">
-            <div className="form-group">
-              <label className="form-label">Titre (optionnel)</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Ex: Douleurs abdominales depuis 3 jours"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                maxLength={255}
+          {categories.length > 0 && (
+            <div className="ncf-group" style={{ marginBottom: 28 }}>
+              <label className="ncf-label">Spécialité médicale</label>
+              <SpecialtyPicker
+                categories={categories}
+                value={categoryId}
+                onChange={(id) => setCategoryId(String(id))}
               />
             </div>
+          )}
 
-            <div className="form-group">
-              <label className="form-label">Decrivez votre probleme *</label>
-              <textarea
-                className="form-input"
-                placeholder="Decrivez vos symptomes, depuis quand, vos antecedents medicaux si pertinents..."
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                rows={5}
-                maxLength={5000}
-                required
-              />
-            </div>
+          <button
+            type="button"
+            className="ncf-submit"
+            disabled={isPending || !categoryId}
+            onClick={handleStart}
+          >
+            {isPending
+              ? <><Loader2 size={17} className="spin" /> Démarrage…</>
+              : <><Sparkles size={17} /> Démarrer la consultation</>
+            }
+          </button>
 
-            {expertId && (
-              <p className="new-conv-expert-hint">
-                Consultation adressee a {selectedExpert?.user?.name ?? 'ce medecin'}.
-                {selectedExpert?.category?.name ? ` Specialite: ${selectedExpert.category.name}.` : ''}
-              </p>
-            )}
-
-            <button type="submit" className="btn btn-primary btn-full" disabled={isPending || (expertId && expertLoading)}>
-              {isPending ? <Loader2 size={18} className="spin" /> : <Stethoscope size={18} />}
-              {isPending ? 'Creation...' : 'Demarrer la consultation'}
-            </button>
-          </form>
+          <p className="ncf-disclaimer-inline">
+            Les informations fournies ne remplacent pas une consultation médicale.
+            En cas d'urgence, appelez le <strong>15</strong>.
+          </p>
         </div>
       </motion.div>
     </div>

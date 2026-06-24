@@ -144,3 +144,43 @@
   font-weight: 600;
 }
 .notif-panel-footer a:hover { color: #60A5FA; }
+
+/* ── Cream/Mint Theme Overrides ── */
+body.theme-cream .notif-panel {
+  background: var(--bg-card) !important;
+  border-color: var(--border-default) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08) !important;
+}
+body.theme-cream .notif-panel-header {
+  border-bottom-color: var(--border-default) !important;
+}
+body.theme-cream .notif-mark-all {
+  color: #00A566 !important;
+}
+body.theme-cream .notif-mark-all:hover {
+  background: rgba(0, 165, 102, 0.12) !important;
+}
+body.theme-cream .notif-item {
+  border-bottom-color: var(--border-default) !important;
+}
+body.theme-cream .notif-item:hover {
+  background: var(--bg-card-hover) !important;
+}
+body.theme-cream .notif-item--unread {
+  background: rgba(0, 165, 102, 0.04) !important;
+}
+body.theme-cream .notif-item--unread:hover {
+  background: rgba(0, 165, 102, 0.08) !important;
+}
+body.theme-cream .notif-dot {
+  background: #00A566 !important;
+}
+body.theme-cream .notif-panel-footer {
+  border-top-color: var(--border-default) !important;
+}
+body.theme-cream .notif-panel-footer a {
+  color: #00A566 !important;
+}
+body.theme-cream .notif-panel-footer a:hover {
+  color: #008753 !important;
+}

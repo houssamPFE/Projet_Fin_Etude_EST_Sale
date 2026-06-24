@@ -21,9 +21,14 @@ class ExpertListController extends Controller
             ->with(['user', 'category'])
             ->withCount('reviews');
 
-        // Filter by category
+        // Filter by category id
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->integer('category_id'));
+        }
+
+        // Filter by specialty slug (e.g. specialty=cardiologie)
+        if ($request->filled('specialty')) {
+            $query->whereHas('category', fn ($q) => $q->where('slug', $request->string('specialty')));
         }
 
         // Filter by availability
@@ -45,7 +50,6 @@ class ExpertListController extends Controller
         $query = match ($sortBy) {
             'rating'  => $query->orderByDesc('rating_avg'),
             'reviews' => $query->orderByDesc('total_reviews'),
-            'rate'    => $query->orderBy('hourly_rate'),
             'newest'  => $query->orderByDesc('created_at'),
             default   => $query->orderByDesc('rating_avg'),
         };

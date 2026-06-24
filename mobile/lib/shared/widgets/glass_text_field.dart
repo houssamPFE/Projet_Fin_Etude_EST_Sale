@@ -67,13 +67,13 @@ class _GlassTextFieldState extends State<GlassTextField> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: _focused
             ? [
-                const BoxShadow(
-                  color: Color(0x706366F1),
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.35),
                   blurRadius: 28,
                   spreadRadius: -3,
                 ),
-                const BoxShadow(
-                  color: Color(0x306366F1),
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.15),
                   blurRadius: 48,
                   spreadRadius: -8,
                 ),
@@ -98,20 +98,20 @@ class _GlassTextFieldState extends State<GlassTextField> {
           hintText: widget.hint,
           prefixIcon: Icon(widget.prefixIcon),
           fillColor: _focused
-              ? const Color(0x256366F1)
-              : const Color(0x0F6366F1),
+              ? AppColors.primary.withValues(alpha: 0.12)
+              : AppColors.primary.withValues(alpha: 0.05),
           filled: true,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.border),
+            borderSide: BorderSide(color: AppColors.border),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.border),
+            borderSide: BorderSide(color: AppColors.border),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+            borderSide: BorderSide(color: AppColors.primary, width: 1.5),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),

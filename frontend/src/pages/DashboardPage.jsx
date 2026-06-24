@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { MessageSquare, Users, Zap, ShieldCheck, Mic, ChevronRight, Loader2, Bell } from 'lucide-react';
+import { MessageSquare, Users, Zap, ShieldCheck, Mic, ChevronRight, Loader2, Sparkles } from 'lucide-react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import { useConversations } from '../hooks/useConversations';
@@ -7,10 +7,10 @@ import { useNotifications } from '../hooks/useNotifications';
 import './DashboardPage.css';
 
 const features = [
-  { icon: Zap,         title: 'IA intelligente',   desc: 'Réponses instantanées grâce à l\'intelligence artificielle avancée', bg: 'rgba(139,92,246,0.1)',  color: '#a78bfa' },
-  { icon: Users,       title: 'Experts qualifiés', desc: 'Réseau d\'experts vérifiés dans chaque domaine',                    bg: 'rgba(20,184,166,0.1)',  color: '#2dd4bf' },
-  { icon: ShieldCheck, title: 'Sécurité',          desc: 'Données chiffrées et confidentialité garantie',                    bg: 'rgba(59,130,246,0.1)',  color: '#60a5fa' },
-  { icon: Mic,         title: 'Audio & Texte',     desc: 'Communiquez par message texte ou vocal',                           bg: 'rgba(245,158,11,0.1)', color: '#fbbf24' },
+  { icon: Zap,         title: 'IA intelligente',   desc: 'Réponses instantanées grâce à l\'intelligence artificielle avancée', bg: 'var(--feat-bg-ai, rgba(139,92,246,0.1))',  color: 'var(--feat-color-ai, #a78bfa)' },
+  { icon: Users,       title: 'Experts qualifiés', desc: 'Réseau d\'experts vérifiés dans chaque domaine',                    bg: 'var(--feat-bg-experts, rgba(20,184,166,0.1))',  color: 'var(--feat-color-experts, #2dd4bf)' },
+  { icon: ShieldCheck, title: 'Sécurité',          desc: 'Données chiffrées et confidentialité garantie',                    bg: 'var(--feat-bg-security, rgba(59,130,246,0.1))',  color: 'var(--feat-color-security, #60a5fa)' },
+  { icon: Mic,         title: 'Audio & Texte',     desc: 'Communiquez par message texte ou vocal',                           bg: 'var(--feat-bg-audio, rgba(245,158,11,0.1))', color: 'var(--feat-color-audio, #fbbf24)' },
 ];
 
 function StatusBadge({ status }) {
@@ -58,12 +58,12 @@ export default function DashboardPage() {
           Posez vos questions et obtenez des réponses fiables grâce à l'intelligence artificielle et à un réseau d'experts qualifiés.
         </p>
         <div className="dashboard-hero-actions">
-          <button className="btn btn-primary btn-lg" onClick={() => navigate('/conversations/new')}>
-            <MessageSquare size={18} />
-            Démarrer une conversation
+          <button className="dashboard-btn-ai" onClick={() => navigate('/conversations/new')}>
+            <Sparkles size={16} />
+            Consulter l'IA
           </button>
-          <Link to="/experts" className="btn btn-secondary btn-lg">
-            Voir les experts <ChevronRight size={18} />
+          <Link to="/experts" className="dashboard-btn-experts">
+            Voir les médecins <ChevronRight size={16} />
           </Link>
         </div>
       </motion.div>
@@ -148,9 +148,9 @@ export default function DashboardPage() {
       <motion.div className="dashboard-cta-banner" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
         <h2>Prêt à obtenir des réponses ?</h2>
         <p>Rejoignez Nexora et accédez à l'expertise dont vous avez besoin, quand vous en avez besoin.</p>
-        <button className="btn btn-lg" style={{ background: '#fff', color: 'var(--primary-600)', fontWeight: 700 }} onClick={() => navigate('/conversations/new')}>
-          <MessageSquare size={18} />
-          Commencer maintenant
+        <button className="dashboard-btn-ai" onClick={() => navigate('/conversations/new')}>
+          <Sparkles size={16} />
+          Consulter l'IA maintenant
         </button>
       </motion.div>
 

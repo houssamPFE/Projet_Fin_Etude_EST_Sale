@@ -11,6 +11,9 @@ export function useAdminDashboard() {
       const { data } = await api.get('/admin/dashboard');
       return data.data;
     },
+    staleTime: 60_000,
+    retry: 2,
+    retryDelay: 1500,
   });
 }
 
@@ -21,6 +24,31 @@ export function useAdminUsers(params = {}) {
       const { data } = await api.get('/admin/users', { params });
       return data;
     },
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useAdminUserStats() {
+  return useQuery({
+    queryKey: ['admin', 'users', 'stats'],
+    queryFn: async () => {
+      const { data } = await api.get('/admin/users/stats');
+      return data.data;
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useBulkSuspendUsers() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids) => api.put('/admin/users/bulk-suspend', { ids }),
+    onSuccess: async (res) => {
+      await invalidate(qc, ['admin', 'users']);
+      toast.success(res.data?.message || 'Utilisateurs suspendus.');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Erreur.'),
   });
 }
 
@@ -60,12 +88,31 @@ export function useUpdateUser() {
   });
 }
 
+export function useAdminChangePlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, plan, credits, expiresAt }) =>
+      api.put(`/admin/users/${userId}/plan`, {
+        plan,
+        consultation_credits: credits,
+        plan_expires_at: expiresAt || null,
+      }),
+    onSuccess: async (res) => {
+      await invalidate(qc, ['admin', 'users']);
+      toast.success(res.data?.message || 'Plan mis à jour.');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Erreur lors du changement de plan.'),
+  });
+}
+
 export function useAdminPendingExperts() {
   return useQuery({
-    queryKey: ['admin', 'experts', 'pending'],
+    queryKey: ['admin', 'experts', 'queue'],
     queryFn: async () => {
-      const { data } = await api.get('/admin/experts/pending');
-      return data.data;
+      const { data } = await api.get('/admin/experts', { params: { per_page: 200 } });
+      const all   = Array.isArray(data.data) ? data.data : [];
+      const stats = data.stats ?? {};
+      return { all, stats };
     },
   });
 }
@@ -141,8 +188,34 @@ export function useAdminCategories() {
     queryKey: ['admin', 'categories'],
     queryFn: async () => {
       const { data } = await api.get('/admin/categories');
-      return data.data;
+      return Array.isArray(data.data) ? data.data : [];
     },
+  });
+}
+
+export function useConversationCleanupPreview(params) {
+  return useQuery({
+    queryKey: ['admin', 'conversations', 'cleanup', 'preview', params],
+    queryFn: async () => {
+      const { data } = await api.get('/admin/conversations/cleanup/preview', { params });
+      return data.count ?? 0;
+    },
+    enabled: !!params,
+  });
+}
+
+export function useConversationCleanup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params) => {
+      const { data } = await api.delete('/admin/conversations/cleanup', { data: params });
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message ?? 'Conversations supprimées.');
+      invalidate(qc, ['admin', 'conversations']);
+    },
+    onError: () => toast.error('Erreur lors de la suppression.'),
   });
 }
 

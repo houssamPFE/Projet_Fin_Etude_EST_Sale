@@ -1,12 +1,16 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart' show DioException;
+import '../../../core/network/dio_client.dart' show fixStorageUrl, dioProvider;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_gradients.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../auth/providers/current_user_provider.dart';
 import '../../home/models/expert_model.dart';
 import '../../home/providers/home_providers.dart';
 import '../../chat/providers/conversations_provider.dart';
@@ -50,7 +54,6 @@ class ExpertProfileScreen extends ConsumerWidget {
   String get specialty => expert.specialty;
   double get rating => expert.rating;
   int get reviewCount => expert.reviewCount;
-  int get rate => expert.hourlyRate;
   String get initials => expert.initials;
   Color get color => expert.avatarColor;
 
@@ -92,6 +95,7 @@ class ExpertProfileScreen extends ConsumerWidget {
                   rating: rating,
                   reviewCount: reviewCount,
                   initials: initials,
+                  avatarUrl: expert.avatarUrl,
                   color: color,
                   online: isOnline,
                 ),
@@ -133,7 +137,6 @@ class ExpertProfileScreen extends ConsumerWidget {
                         icon: Icons.chat_outlined,
                         label: 'Consultation rapide',
                         duration: '30 min',
-                        price: rate ~/ 2,
                         color: color,
                       ),
                       const SizedBox(height: 10),
@@ -141,7 +144,6 @@ class ExpertProfileScreen extends ConsumerWidget {
                         icon: Icons.medical_services_outlined,
                         label: 'Consultation standard',
                         duration: '45 min',
-                        price: (rate * 3) ~/ 4,
                         color: color,
                       ),
                       const SizedBox(height: 10),
@@ -149,7 +151,6 @@ class ExpertProfileScreen extends ConsumerWidget {
                         icon: Icons.health_and_safety_outlined,
                         label: 'Consultation complète',
                         duration: '60 min',
-                        price: rate,
                         color: color,
                       ),
                     ],
@@ -170,7 +171,7 @@ class ExpertProfileScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                       reviewsAsync.when(
-                        loading: () => const Center(
+                        loading: () => Center(
                           child: CircularProgressIndicator(color: AppColors.primary),
                         ),
                         error: (e, s) => const SizedBox.shrink(),
@@ -224,14 +225,15 @@ class ExpertProfileScreen extends ConsumerWidget {
             left: 0,
             right: 0,
             child: _BottomCTA(
+              expertId: expert.id,
               categoryId: expert.categoryId,
-              rate: rate,
               bottomPadding: bottomPadding,
               name: name,
               initials: initials,
               color: color,
               specialty: specialty,
               online: isAvailable,
+              avatarUrl: expert.avatarUrl,
             ),
           ),
         ],
@@ -295,6 +297,7 @@ class _HeroSection extends StatelessWidget {
   final double rating;
   final int reviewCount;
   final String initials;
+  final String? avatarUrl;
   final Color color;
   final bool online;
 
@@ -304,6 +307,7 @@ class _HeroSection extends StatelessWidget {
     required this.rating,
     required this.reviewCount,
     required this.initials,
+    this.avatarUrl,
     required this.color,
     required this.online,
   });
@@ -435,30 +439,20 @@ class _HeroSection extends StatelessWidget {
         Container(
           width: 104,
           height: 104,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: AppGradients.primary,
           ),
           padding: const EdgeInsets.all(2.5),
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [color.withAlpha(220), color.withAlpha(150)],
-              ),
-            ),
-            child: Center(
-              child: Text(
-                initials,
-                style: AppTextStyles.headlineLarge.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
+          child: ClipOval(
+            child: avatarUrl != null && avatarUrl!.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: fixStorageUrl(avatarUrl!),
+                    fit: BoxFit.cover,
+                    placeholder: (_, _) => _initialsInner(),
+                    errorWidget: (_, _, _) => _initialsInner(),
+                  )
+                : _initialsInner(),
           ),
         ),
         // Online badge
@@ -497,6 +491,22 @@ class _HeroSection extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _initialsInner() {
+    return Container(
+      color: color,
+      child: Center(
+        child: Text(
+          initials,
+          style: AppTextStyles.headlineLarge.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -662,21 +672,19 @@ class _AboutCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Consultation card (rate-based, from real API hourlyRate)
+// Consultation card (subscription model — 1 credit per consultation)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ConsultationCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final String duration;
-  final int price;
   final Color color;
 
   const _ConsultationCard({
     required this.icon,
     required this.label,
     required this.duration,
-    required this.price,
     required this.color,
   });
 
@@ -723,18 +731,26 @@ class _ConsultationCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.schedule_outlined, size: 11, color: AppColors.textTertiary),
+                          Icon(Icons.schedule_outlined, size: 11, color: AppColors.textTertiary),
                           const SizedBox(width: 4),
                           Text(duration, style: AppTextStyles.caption),
                         ],
                       ),
                     ),
                     const Spacer(),
-                    Text(
-                      '$price MAD',
-                      style: AppTextStyles.labelMedium.copyWith(
-                        color: AppColors.primaryLight,
-                        fontWeight: FontWeight.w700,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(30),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.primary.withAlpha(60)),
+                      ),
+                      child: Text(
+                        '1 crédit',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primaryLight,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -840,24 +856,26 @@ class _ReviewCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BottomCTA extends ConsumerStatefulWidget {
+  final int expertId;
   final int categoryId;
-  final int rate;
   final double bottomPadding;
   final String name;
   final String initials;
   final Color color;
   final String specialty;
   final bool online;
+  final String? avatarUrl;
 
   const _BottomCTA({
+    required this.expertId,
     required this.categoryId,
-    required this.rate,
     required this.bottomPadding,
     required this.name,
     required this.initials,
     required this.color,
     required this.specialty,
     required this.online,
+    this.avatarUrl,
   });
 
   @override
@@ -869,19 +887,55 @@ class _BottomCTAState extends ConsumerState<_BottomCTA> {
 
   Future<void> _startConversation() async {
     if (_loading) return;
+
+    // ── Plan check ──────────────────────────────────────────────────────────
+    // Free users and users with no credits must upgrade before consulting.
+    final user = ref.read(currentUserProvider).valueOrNull;
+    if (user == null) return;
+
+    if (user.plan == 'free' || !user.planIsActive) {
+      if (mounted) {
+        context.push(AppRoutes.upgrade, extra: {'reason': 'no_plan'});
+      }
+      return;
+    }
+    if (user.consultationCredits <= 0) {
+      if (mounted) {
+        context.push(AppRoutes.upgrade, extra: {'reason': 'no_credits'});
+      }
+      return;
+    }
+
     setState(() => _loading = true);
 
     try {
-      final service = ref.read(conversationServiceProvider);
-      final conv = await service.createConversation(
-        categoryId: widget.categoryId,
-        message: 'Bonjour ${widget.name}, j\'aimerais discuter avec vous.',
+      final dio = ref.read(dioProvider);
+
+      // Step 1: Create the conversation WITHOUT an initial message.
+      // Sending a message here would trigger the n8n AI pipeline before
+      // the conversation is escalated, causing the AI to reply instead of
+      // the doctor.
+      final createRes = await dio.post(
+        '/conversations',
+        data: {'category_id': widget.categoryId},
       );
-      final conversationId = conv['id'] as int;
+      final createPayload =
+          ((createRes.data as Map<String, dynamic>)['data'] as Map<String, dynamic>);
+      final conversation =
+          (createPayload['conversation'] as Map<String, dynamic>? ?? createPayload);
+      final conversationId = conversation['id'] as int;
+
+      // Step 2: Immediately escalate to this specific doctor.
+      // Deducts 1 credit and sets conversation.status = 'expert'.
+      await dio.post(
+        '/conversations/$conversationId/escalate',
+        data: {'expert_id': widget.expertId},
+      );
 
       if (!mounted) return;
       ref.invalidate(conversationsProvider);
 
+      // Step 3: Open the doctor chat — the user sends their first message.
       context.push(AppRoutes.chat, extra: {
         'name': widget.name,
         'initials': widget.initials,
@@ -890,7 +944,19 @@ class _BottomCTAState extends ConsumerState<_BottomCTA> {
         'online': widget.online,
         'isAi': false,
         'conversationId': conversationId,
+        'avatarUrl': widget.avatarUrl,
+        'isValidated': true,
       });
+    } on DioException catch (e) {
+      if (!mounted) return;
+      if (e.response?.statusCode == 402) {
+        final reason = e.response?.data?['reason'] as String? ?? 'no_plan';
+        context.push(AppRoutes.upgrade, extra: {'reason': reason});
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur lors du démarrage de la consultation.')),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -903,28 +969,35 @@ class _BottomCTAState extends ConsumerState<_BottomCTA> {
 
   @override
   Widget build(BuildContext context) {
+    // Read plan reactively so the button label updates if the user upgrades.
+    final user = ref.watch(currentUserProvider).valueOrNull;
+    final isFree = user == null || user.plan == 'free' || !user.planIsActive;
+
     return Container(
       padding: EdgeInsets.fromLTRB(20, 14, 20, 14 + widget.bottomPadding),
       decoration: BoxDecoration(
         color: AppColors.background.withAlpha(242),
-        border: const Border(top: BorderSide(color: AppColors.border)),
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         children: [
+          // Cost badge — for free users show "Pro requis"
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'À partir de',
+                'Coût',
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.textTertiary,
                 ),
               ),
               Text(
-                '${widget.rate} MAD/h',
+                isFree ? 'Pro requis' : '1 crédit',
                 style: AppTextStyles.headlineSmall.copyWith(
-                  color: AppColors.primaryLight,
+                  color: isFree
+                      ? const Color(0xFF8B5CF6)
+                      : AppColors.primaryLight,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -932,11 +1005,46 @@ class _BottomCTAState extends ConsumerState<_BottomCTA> {
           ),
           const SizedBox(width: 20),
           Expanded(
-            child: NexoraGradientButton(
-              label: _loading ? 'Chargement...' : 'Démarrer une conversation',
-              onTap: _loading ? () {} : _startConversation,
-              height: 50,
-            ),
+            child: _loading
+                ? NexoraGradientButton(
+                    label: 'Chargement...',
+                    onTap: () {},
+                    height: 50,
+                  )
+                : isFree
+                    ? GestureDetector(
+                        onTap: _startConversation,
+                        child: Container(
+                          height: 50,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF7C3AED), Color(0xFF6366F1)],
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.workspace_premium_rounded,
+                                  color: Colors.white, size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                'Passer au Pro',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : NexoraGradientButton(
+                        label: 'Démarrer une consultation',
+                        onTap: _startConversation,
+                        height: 50,
+                      ),
           ),
         ],
       ),

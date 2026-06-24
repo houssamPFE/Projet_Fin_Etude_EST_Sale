@@ -16,14 +16,26 @@ class AuthState {
   final bool isLoading;
   final String? error;
   final String? infoMessage;
+  final bool maintenance;
 
-  const AuthState({this.isLoading = false, this.error, this.infoMessage});
+  const AuthState({
+    this.isLoading = false,
+    this.error,
+    this.infoMessage,
+    this.maintenance = false,
+  });
 
-  AuthState copyWith({bool? isLoading, String? error, String? infoMessage}) =>
+  AuthState copyWith({
+    bool? isLoading,
+    String? error,
+    String? infoMessage,
+    bool? maintenance,
+  }) =>
       AuthState(
         isLoading: isLoading ?? this.isLoading,
         error: error,
         infoMessage: infoMessage,
+        maintenance: maintenance ?? this.maintenance,
       );
 }
 
@@ -57,6 +69,12 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
       return result;
     } on DioException catch (e) {
       final data = e.response?.data;
+      if (e.response?.statusCode == 503 &&
+          data is Map &&
+          data['maintenance'] == true) {
+        state = const AuthState(maintenance: true);
+        return null;
+      }
       if (data is Map && data['requires_verification'] == true) {
         state = const AuthState();
         return LoginNeedsVerification();

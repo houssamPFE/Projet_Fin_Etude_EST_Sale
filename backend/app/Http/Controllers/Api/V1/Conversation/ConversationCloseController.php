@@ -3,16 +3,13 @@
 namespace App\Http\Controllers\Api\V1\Conversation;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\SummarizeConversationJob;
+use App\Jobs\CloseConversationJob;
 use App\Models\Conversation;
-use App\Services\ConversationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ConversationCloseController extends Controller
 {
-    public function __construct(private ConversationService $conversationService) {}
-
     /**
      * Close a conversation.
      *
@@ -37,10 +34,15 @@ class ConversationCloseController extends Controller
             ], 422);
         }
 
-        $this->conversationService->close($conversation);
+        // Determine who is closing so the job can send the right notifications
+        $closedBy = match (true) {
+            $user->id === $conversation->user_id => 'patient',
+            $conversation->expert?->user_id === $user->id => 'expert',
+            default => 'system',
+        };
 
-        // Trigger AI summary generation
-        SummarizeConversationJob::dispatch($conversation);
+        // Delegate everything to the job: close + AI summary + notifications
+        CloseConversationJob::dispatch($conversation, $closedBy);
 
         return response()->json([
             'message' => 'Conversation fermée.',

@@ -36,7 +36,7 @@ class ApplyController extends Controller
 
         $expert = $this->expertService->apply(
             $user,
-            $request->only(['category_id', 'bio', 'certifications', 'hourly_rate']),
+            $request->only(['category_id', 'bio', 'certifications']),
             $documents
         );
 

@@ -13,14 +13,21 @@ class NexoraImageIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Luminance → alpha matrix: preserves original colors, makes dark pixels transparent
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ColorFiltered(
-      colorFilter: const ColorFilter.matrix([
-        1, 0, 0, 0, 0,
-        0, 1, 0, 0, 0,
-        0, 0, 1, 0, 0,
-        0.2126, 0.7152, 0.0722, 0, 0,
-      ]),
+      colorFilter: isDark
+          ? const ColorFilter.matrix([
+              1, 0, 0, 0, 0,
+              0, 1, 0, 0, 0,
+              0, 0, 1, 0, 0,
+              0.2126, 0.7152, 0.0722, 0, 0,
+            ])
+          : const ColorFilter.matrix([
+              0, 0, 0, 0, 0,       // R = 0
+              0.647, 0, 0, 0, 0,   // G = 0.647 (165 / 255)
+              0.400, 0, 0, 0, 0,   // B = 0.400 (102 / 255)
+              0.2126, 0.7152, 0.0722, 0, 0, // Alpha
+            ]),
       child: Image.asset(
         'assets/images/logo.png',
         width: size,

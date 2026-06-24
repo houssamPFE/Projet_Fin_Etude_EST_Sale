@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Temporary / Development Trace
+*analysis*.txt
+*.analysis
+scratch/
+**/scratch/

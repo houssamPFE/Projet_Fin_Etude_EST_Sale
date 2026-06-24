@@ -1,37 +1,38 @@
 import 'package:flutter/material.dart';
+import 'theme_provider.dart';
 
 abstract class AppColors {
   // ── Backgrounds ──────────────────────────────────────────────────────────
-  static const Color background      = Color(0xFF070B18);
-  static const Color backgroundAlt   = Color(0xFF0D1120);
-  static const Color surface         = Color(0xFF111827);
-  static const Color surfaceElevated = Color(0xFF1A2035);
-  static const Color card            = Color(0xFF151C2E);
-  static const Color cardBorder      = Color(0xFF1E2A42);
+  static Color get background      => AppThemePreset.current.background;
+  static Color get backgroundAlt   => AppThemePreset.current.backgroundAlt;
+  static Color get surface         => AppThemePreset.current.surface;
+  static Color get surfaceElevated => AppThemePreset.current.surfaceElevated;
+  static Color get card            => AppThemePreset.current.card;
+  static Color get cardBorder      => AppThemePreset.current.cardBorder;
 
   // ── Brand ─────────────────────────────────────────────────────────────────
-  static const Color primary         = Color(0xFF6366F1); // Indigo
-  static const Color primaryDark     = Color(0xFF4F52D9);
-  static const Color primaryLight    = Color(0xFF818CF8);
-  static const Color secondary       = Color(0xFF8B5CF6); // Violet
-  static const Color secondaryLight  = Color(0xFFA78BFA);
-  static const Color accent          = Color(0xFF3B82F6); // Blue
+  static Color get primary         => AppThemePreset.current.primary;
+  static Color get primaryDark     => AppThemePreset.current.primaryDark;
+  static Color get primaryLight    => AppThemePreset.current.primaryLight;
+  static Color get secondary       => AppThemePreset.current.secondary;
+  static Color get secondaryLight  => AppThemePreset.current.secondaryLight;
+  static Color get accent          => AppThemePreset.current.accent;
 
   // ── Gradients ─────────────────────────────────────────────────────────────
-  static const Color gradientStart   = Color(0xFF6366F1);
-  static const Color gradientMid     = Color(0xFF8B5CF6);
-  static const Color gradientEnd     = Color(0xFF3B82F6);
+  static Color get gradientStart   => AppThemePreset.current.primary;
+  static Color get gradientMid     => AppThemePreset.current.secondary;
+  static Color get gradientEnd     => AppThemePreset.current.accent;
 
   // ── Glow / Ambient ────────────────────────────────────────────────────────
-  static const Color glowPrimary     = Color(0x406366F1);
-  static const Color glowSecondary   = Color(0x408B5CF6);
+  static Color get glowPrimary     => AppThemePreset.current.primary.withValues(alpha: 0.25);
+  static Color get glowSecondary   => AppThemePreset.current.secondary.withValues(alpha: 0.25);
 
   // ── Text ──────────────────────────────────────────────────────────────────
-  static const Color textPrimary     = Color(0xFFF9FAFB);
-  static const Color textSecondary   = Color(0xFF9CA3AF);
-  static const Color textTertiary    = Color(0xFF6B7280);
-  static const Color textDisabled    = Color(0xFF374151);
-  static const Color textInverse     = Color(0xFF111827);
+  static Color get textPrimary     => AppThemePreset.current.textPrimary;
+  static Color get textSecondary   => AppThemePreset.current.textSecondary;
+  static Color get textTertiary    => AppThemePreset.current.textTertiary;
+  static Color get textDisabled    => AppThemePreset.current.brightness == Brightness.dark ? const Color(0xFF374151) : const Color(0xFFD1D5DB);
+  static Color get textInverse     => AppThemePreset.current.brightness == Brightness.dark ? const Color(0xFF111827) : const Color(0xFFFFFFFF);
 
   // ── Semantic ──────────────────────────────────────────────────────────────
   static const Color success         = Color(0xFF10B981);
@@ -44,17 +45,17 @@ abstract class AppColors {
   static const Color infoBg          = Color(0xFF052032);
 
   // ── Borders & Dividers ────────────────────────────────────────────────────
-  static const Color border          = Color(0xFF1E2A42);
-  static const Color borderFocus     = Color(0xFF6366F1);
-  static const Color divider         = Color(0xFF1A2338);
+  static Color get border          => AppThemePreset.current.border;
+  static Color get borderFocus     => AppThemePreset.current.primary;
+  static Color get divider         => AppThemePreset.current.divider;
 
   // ── Input ─────────────────────────────────────────────────────────────────
-  static const Color inputBackground = Color(0xFF111827);
-  static const Color inputBorder     = Color(0xFF1E2A42);
-  static const Color inputFocused    = Color(0xFF6366F1);
+  static Color get inputBackground => AppThemePreset.current.surface;
+  static Color get inputBorder     => AppThemePreset.current.border;
+  static Color get inputFocused    => AppThemePreset.current.primary;
 
   // ── Overlay ───────────────────────────────────────────────────────────────
-  static const Color overlay         = Color(0xCC070B18);
-  static const Color shimmerBase     = Color(0xFF1A2035);
-  static const Color shimmerHighlight= Color(0xFF1E2A42);
+  static Color get overlay         => AppThemePreset.current.brightness == Brightness.dark ? const Color(0xCC070B18) : const Color(0xCCFDFCEB);
+  static Color get shimmerBase     => AppThemePreset.current.surfaceElevated;
+  static Color get shimmerHighlight=> AppThemePreset.current.border;
 }

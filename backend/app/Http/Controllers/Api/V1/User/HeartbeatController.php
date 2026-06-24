@@ -20,8 +20,12 @@ class HeartbeatController extends Controller
     {
         $user = $request->user();
 
-        // Update DB timestamp (drives "last seen" text on slow polls)
-        $user->update(['last_seen_at' => now()]);
+        // Update DB timestamps
+        $user->update([
+            'last_seen_at'       => now(),
+            'last_activity_at'   => now(),
+            'last_activity_type' => $user->last_activity_type ?? 'Navigation',
+        ]);
 
         // Fast online check: Redis key expires in 90 seconds
         Cache::put("user_online_{$user->id}", true, now()->addSeconds(90));
@@ -29,6 +33,11 @@ class HeartbeatController extends Controller
         // Broadcast presence update to all active conversations involving this user,
         // so the other participant's online dot updates in real-time without refresh.
         $this->broadcastPresence($user);
+
+        // Also broadcast on the expert-presence channel so ExpertDetailPage updates instantly.
+        if ($user->role->value === 'expert' && $user->expert) {
+            broadcast(new UserPresenceChanged($user->id, null, true, $user->expert->id));
+        }
 
         return response()->json(['ok' => true]);
     }

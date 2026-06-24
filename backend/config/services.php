@@ -90,4 +90,9 @@ return [
         'base_url'    => env('CMI_BASE_URL'),
     ],
 
+    'fcm' => [
+        'server_key' => env('FCM_SERVER_KEY'),
+        'endpoint'   => 'https://fcm.googleapis.com/fcm/send',
+    ],
+
 ];

@@ -14,11 +14,10 @@ class N8nService
     {
         $this->client = Http::baseUrl(config('services.n8n.base_url'))
             ->withHeaders([
-                'Authorization' => 'Bearer ' . config('services.n8n.secret'),
-                'Content-Type'  => 'application/json',
+                'X-N8N-Secret' => config('services.n8n.secret'),
+                'Content-Type' => 'application/json',
             ])
-            ->timeout(30)
-            ->retry(2, 1000);
+            ->timeout(30);
     }
 
     /**

@@ -43,7 +43,7 @@ return new class extends Migration
                 'value'       => 'true',
                 'type'        => 'boolean',
                 'label'       => 'Réponses IA activées',
-                'description' => 'Active le traitement automatique des messages par l\'IA (GPT-4).',
+                'description' => 'Active le traitement automatique des messages par l\'IA (Groq — Llama / Mixtral).',
                 'group'       => 'ai',
             ],
             [
@@ -52,14 +52,6 @@ return new class extends Migration
                 'type'        => 'decimal',
                 'label'       => 'Seuil d\'escalade IA',
                 'description' => 'Score de confiance minimum (0.0–1.0). En dessous, la conversation est escaladée vers un médecin.',
-                'group'       => 'ai',
-            ],
-            [
-                'key'         => 'tts_enabled',
-                'value'       => 'true',
-                'type'        => 'boolean',
-                'label'       => 'Synthèse vocale (TTS)',
-                'description' => 'Génère une réponse audio via ElevenLabs après chaque réponse IA.',
                 'group'       => 'ai',
             ],
             [

@@ -13,7 +13,10 @@ class PaymentConfirmController extends Controller
     public function __construct(private PaymentService $paymentService) {}
 
     /**
+     * Confirm a Stripe subscription payment after the client-side charge.
+     *
      * POST /api/v1/payments/stripe/confirm
+     * Body: { "payment_intent_id": "pi_xxx" }
      */
     public function __invoke(Request $request): JsonResponse
     {
@@ -21,11 +24,11 @@ class PaymentConfirmController extends Controller
             'payment_intent_id' => ['required', 'string'],
         ]);
 
-        $payment = $this->paymentService->confirm($request->payment_intent_id);
+        $payment = $this->paymentService->confirmSubscription($request->payment_intent_id);
 
         return response()->json([
-            'message' => 'Paiement confirmé.',
-            'data'    => new PaymentResource($payment->load(['user', 'expert.user'])),
+            'message' => 'Paiement confirmé. Votre abonnement est actif.',
+            'data'    => new PaymentResource($payment->load(['user'])),
         ]);
     }
 }

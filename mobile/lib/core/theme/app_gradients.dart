@@ -3,7 +3,7 @@ import 'app_colors.dart';
 
 abstract class AppGradients {
   // ── Primary brand gradient ─────────────────────────────────────────────
-  static const LinearGradient primary = LinearGradient(
+  static LinearGradient get primary => LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
@@ -11,33 +11,33 @@ abstract class AppGradients {
       AppColors.gradientMid,
       AppColors.gradientEnd,
     ],
-    stops: [0.0, 0.5, 1.0],
+    stops: const [0.0, 0.5, 1.0],
   );
 
   // ── Vertical hero gradient (dark top to brand bottom) ──────────────────
-  static const LinearGradient hero = LinearGradient(
+  static LinearGradient get hero => LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [
-      Color(0xFF070B18),
-      Color(0xFF0D1120),
-      Color(0xFF111827),
+      AppColors.background,
+      AppColors.backgroundAlt,
+      AppColors.surface,
     ],
-    stops: [0.0, 0.5, 1.0],
+    stops: const [0.0, 0.5, 1.0],
   );
 
   // ── Ambient glow (for cards and buttons) ───────────────────────────────
-  static const LinearGradient cardGlow = LinearGradient(
+  static LinearGradient get cardGlow => LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0x1A6366F1),
-      Color(0x0A8B5CF6),
+      AppColors.primary.withValues(alpha: 0.1),
+      AppColors.secondary.withValues(alpha: 0.04),
     ],
   );
 
   // ── Button gradient ────────────────────────────────────────────────────
-  static const LinearGradient button = LinearGradient(
+  static LinearGradient get button => LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
     colors: [
@@ -47,31 +47,31 @@ abstract class AppGradients {
   );
 
   // ── Shimmer gradient ───────────────────────────────────────────────────
-  static const LinearGradient shimmer = LinearGradient(
-    begin: Alignment(-1.0, -0.3),
-    end: Alignment(1.0, 0.3),
+  static LinearGradient get shimmer => LinearGradient(
+    begin: const Alignment(-1.0, -0.3),
+    end: const Alignment(1.0, 0.3),
     colors: [
       AppColors.shimmerBase,
       AppColors.shimmerHighlight,
       AppColors.shimmerBase,
     ],
-    stops: [0.0, 0.5, 1.0],
+    stops: const [0.0, 0.5, 1.0],
   );
 
   // ── Overlay gradient (fade to bottom for images) ───────────────────────
-  static const LinearGradient imageOverlay = LinearGradient(
+  static LinearGradient get imageOverlay => LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [
       Colors.transparent,
-      Color(0xCC070B18),
+      AppColors.overlay,
     ],
   );
 
   // ── Radial glow for avatar / icon backgrounds ──────────────────────────
-  static const RadialGradient avatarGlow = RadialGradient(
+  static RadialGradient get avatarGlow => RadialGradient(
     colors: [
-      Color(0x406366F1),
+      AppColors.primary.withValues(alpha: 0.25),
       Colors.transparent,
     ],
     radius: 0.8,

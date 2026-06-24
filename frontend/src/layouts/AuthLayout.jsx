@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { ShieldCheck, Stethoscope, Sparkles } from 'lucide-react';
 import NexoraBackground from '../components/NexoraBackground';
+import useThemeStore from '../stores/themeStore';
 import './AuthLayout.css';
 
 const SWAP_TRANSITION = { duration: 0.7, ease: [0.32, 0.72, 0, 1] };
@@ -13,7 +14,7 @@ const COPY = {
     accent: 'Vos médecins. Disponibles 24/7.',
     pills: [
       { icon: ShieldCheck, label: 'Consultations confidentielles' },
-      { icon: Sparkles,    label: 'Triage IA en français + arabe' },
+      { icon: Sparkles, label: 'Triage IA en français + arabe' },
       { icon: Stethoscope, label: '8 spécialités · médecins INPE' },
     ],
   },
@@ -22,7 +23,7 @@ const COPY = {
     subtitle: 'Inscription en moins de 2 minutes. Premier avis IA gratuit.',
     accent: 'Rejoignez 27 000 patients déjà inscrits.',
     pills: [
-      { icon: Sparkles,    label: 'Triage médical IA bilingue' },
+      { icon: Sparkles, label: 'Triage médical IA bilingue' },
       { icon: Stethoscope, label: '8 spécialités, expertise nationale' },
       { icon: ShieldCheck, label: 'Données chiffrées · secret médical' },
     ],
@@ -31,6 +32,7 @@ const COPY = {
 
 export default function AuthLayout() {
   const location = useLocation();
+  const { theme } = useThemeStore();
   const mode = location.pathname.includes('register') ? 'register' : 'login';
   const formOnLeft = mode === 'register';
   const copy = COPY[mode];
@@ -56,7 +58,7 @@ export default function AuthLayout() {
             {/* Top row: logo only */}
             <div className="auth-brand-top">
               <div className="auth-brand-logo">
-                <img src="/logo.png" alt="Nexora" className="auth-brand-img" />
+                <img src="/nexora1.png" alt="Nexora" className="auth-brand-img" />
                 <div className="auth-brand-text">
                   <h1 className="auth-brand-name">NEXORA</h1>
                   <span className="auth-brand-slogan">Médecine intelligente</span>

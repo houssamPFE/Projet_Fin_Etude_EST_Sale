@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\AuthService;
 use App\Services\TwoFactorService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Crypt;
 
@@ -30,6 +31,20 @@ class LoginController extends Controller
 
         if (! $user->is_active) {
             return response()->json(['message' => 'Compte désactivé. Contactez le support.'], 403);
+        }
+
+        // Block non-admins from logging in during maintenance.
+        if ($user->role->value !== 'admin') {
+            $inMaintenance = Cache::remember('sys:maintenance_mode', 60, function () {
+                return SystemSetting::get('maintenance_mode', false);
+            });
+
+            if ($inMaintenance) {
+                return response()->json([
+                    'message'     => 'La plateforme est en cours de maintenance. Veuillez réessayer dans quelques instants.',
+                    'maintenance' => true,
+                ], 503);
+            }
         }
 
         if (! $user->email_verified_at) {
@@ -84,6 +99,11 @@ class LoginController extends Controller
                 'setup_data' => $setupData,
             ]);
         }
+
+        $user->update([
+            'last_activity_at'   => now(),
+            'last_activity_type' => 'Connexion',
+        ]);
 
         $tokens = $this->authService->createTokenPair($user);
 

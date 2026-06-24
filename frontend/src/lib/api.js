@@ -14,6 +14,11 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // When sending FormData (file uploads), remove the default Content-Type
+  // so the browser sets it automatically with the correct multipart boundary.
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
   return config;
 });
 
@@ -45,6 +50,16 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
+
+    // Maintenance mode — redirect unless this is the login endpoint
+    // (login page handles it inline with a banner).
+    if (status === 503 && error.response?.data?.maintenance) {
+      const isLoginCall = originalRequest?.url?.includes('/auth/login');
+      if (!isLoginCall && window.location.pathname !== '/maintenance') {
+        window.location.href = '/maintenance';
+      }
+      return Promise.reject(error);
+    }
 
     // Not a 401, or the request that failed WAS the refresh itself, or
     // we've already retried this request once → bail out.

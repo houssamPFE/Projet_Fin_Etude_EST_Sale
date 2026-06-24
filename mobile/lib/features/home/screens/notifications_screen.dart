@@ -23,13 +23,20 @@ class NotificationsScreen extends ConsumerWidget {
         backgroundColor: AppColors.background.withAlpha(240),
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: Colors.white, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: AppColors.textPrimary, size: 20),
           onPressed: () => context.pop(),
         ),
         title: Row(
           children: [
-            const Text('Notifications'),
+            Text(
+              'Notifications',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             if (state.unreadCount > 0) ...[
               const SizedBox(width: 8),
               Container(
@@ -67,7 +74,7 @@ class NotificationsScreen extends ConsumerWidget {
       ),
       body: () {
         if (state.isLoading) {
-          return const Center(
+          return Center(
             child: CircularProgressIndicator(color: AppColors.primary),
           );
         }
@@ -120,6 +127,8 @@ class NotificationsScreen extends ConsumerWidget {
       }(),
       bottomNavigationBar: PremiumBottomNavBar(
         currentPage: -1,
+        menuOpen: false,
+        rotateAnim: kAlwaysDismissedAnimation,
         onTap: (i) {
           final routes = [
             AppRoutes.home,
@@ -147,14 +156,14 @@ class NotificationsScreen extends ConsumerWidget {
               color: AppColors.primary.withAlpha(15),
               border: Border.all(color: AppColors.primary.withAlpha(30)),
             ),
-            child: const Icon(Icons.notifications_outlined,
+            child: Icon(Icons.notifications_outlined,
                 color: AppColors.primary, size: 36),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Aucune notification',
             style: TextStyle(
-                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
@@ -248,7 +257,7 @@ class _NotifTile extends StatelessWidget {
                             fontWeight: isUnread
                                 ? FontWeight.w700
                                 : FontWeight.w600,
-                            color: Colors.white,
+                            color: AppColors.textPrimary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -258,7 +267,7 @@ class _NotifTile extends StatelessWidget {
                         Container(
                           width: 7,
                           height: 7,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: AppColors.primary,
                           ),

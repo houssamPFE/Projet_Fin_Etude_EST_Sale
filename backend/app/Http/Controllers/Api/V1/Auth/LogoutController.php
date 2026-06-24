@@ -23,6 +23,11 @@ class LogoutController extends Controller
         // see the dot go grey instantly without waiting for the Redis TTL to expire
         $this->broadcastOffline($user);
 
+        // Also broadcast on the expert-presence channel so ExpertDetailPage updates instantly.
+        if ($user->role->value === 'expert' && $user->expert) {
+            broadcast(new UserPresenceChanged($user->id, null, false, $user->expert->id));
+        }
+
         // Revoke all tokens
         $user->tokens()->delete();
 

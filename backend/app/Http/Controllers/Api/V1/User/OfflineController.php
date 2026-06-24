@@ -28,6 +28,11 @@ class OfflineController extends Controller
 
         $this->broadcastOffline($user);
 
+        // Also broadcast on the expert-presence channel so ExpertDetailPage updates instantly.
+        if ($user->role->value === 'expert' && $user->expert) {
+            broadcast(new UserPresenceChanged($user->id, null, false, $user->expert->id));
+        }
+
         return response()->json(['ok' => true]);
     }
 

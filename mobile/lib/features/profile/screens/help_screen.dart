@@ -180,7 +180,7 @@ class _SearchBar extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: 14),
-          const Icon(
+          Icon(
             Icons.search_rounded,
             size: 18,
             color: AppColors.textTertiary,
@@ -210,8 +210,8 @@ class _SearchBar extends StatelessWidget {
                 controller.clear();
                 onChanged('');
               },
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Icon(
                   Icons.close_rounded,
                   size: 16,
@@ -342,7 +342,7 @@ class _FaqTileState extends State<_FaqTile>
                 const SizedBox(width: 12),
                 RotationTransition(
                   turns: _rotate,
-                  child: const Icon(
+                  child: Icon(
                     Icons.keyboard_arrow_down_rounded,
                     color: AppColors.primaryLight,
                     size: 20,
@@ -504,7 +504,7 @@ class _ContactCardState extends State<_ContactCard> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.primary.withAlpha(50)),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.support_agent_rounded,
                   size: 18,
                   color: AppColors.primaryLight,
@@ -587,7 +587,7 @@ class _ContactCardState extends State<_ContactCard> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.send_rounded,
                     size: 16,
                     color: AppColors.primaryLight,
@@ -766,15 +766,15 @@ class _SupportTextField extends StatelessWidget {
         filled: true,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
+          borderSide: BorderSide(color: AppColors.primary, width: 1.4),
         ),
       ),
     );
@@ -932,7 +932,7 @@ class _EmptySearch extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.search_off_rounded,
               color: AppColors.textTertiary,
               size: 48,

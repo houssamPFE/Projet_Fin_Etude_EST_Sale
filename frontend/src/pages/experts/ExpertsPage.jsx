@@ -1,53 +1,84 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Star, Clock, Filter, Loader2 } from 'lucide-react';
+import { Search, Star, Loader2, Users, Award, BadgeCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useExperts, useCategories } from '../../hooks/useExperts';
-import CustomSelect from '../../components/CustomSelect';
+import { getEcho } from '../../lib/echo';
 import './ExpertsPage.css';
 
-function ExpertCard({ expert, index }) {
+function getInitials(name) {
+  if (!name) return 'DR';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function ExpertAvatar({ avatarUrl, name }) {
+  const [failed, setFailed] = useState(false);
+  const initials = getInitials(name);
+
+  if (avatarUrl && !failed) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return <span>{initials}</span>;
+}
+
+function ExpertCard({ expert, index, isOnline }) {
   return (
     <motion.div
-      className="expert-card"
-      initial={{ opacity: 0, y: 20 }}
+      className="ec-card"
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: index * 0.06 }}
+      transition={{ duration: 0.3, delay: index * 0.05 }}
     >
-      <div className="expert-card-header">
-        <div className="expert-avatar-wrap">
-          <div className="expert-avatar">
-            {expert.user?.name?.charAt(0)?.toUpperCase() ?? 'E'}
-          </div>
-          {expert.user?.is_online && <span className="expert-online-dot" />}
+      {/* Availability badge */}
+      <span className={`ec-avail ${expert.is_available ? 'ec-avail--on' : 'ec-avail--off'}`}>
+        <span className="ec-avail-dot" />
+        {expert.is_available ? 'Disponible' : 'Occupé'}
+      </span>
+
+      {/* Avatar */}
+      <div className="ec-avatar-wrap">
+        <div className="ec-avatar">
+          <ExpertAvatar avatarUrl={expert.user?.avatar_url} name={expert.user?.name} />
         </div>
-        <div className="expert-card-meta">
-          <h3 className="expert-name">{expert.user?.name}</h3>
-          <span className="expert-category">{expert.category?.name}</span>
-        </div>
-        <span className={`expert-badge ${expert.is_available ? 'expert-badge--available' : 'expert-badge--busy'}`}>
-          {expert.is_available ? 'Disponible' : 'Occupé'}
-        </span>
+        {isOnline && <span className="ec-online-dot" />}
       </div>
 
-      {expert.bio && (
-        <p className="expert-bio">{expert.bio}</p>
-      )}
+      {/* Identity */}
+      <div className="ec-identity">
+        <h3 className="ec-name">
+          Dr. {expert.user?.name}
+          <BadgeCheck size={14} className="ec-verified" />
+        </h3>
+        <span className="ec-specialty">{expert.category?.name}</span>
+      </div>
 
-      <div className="expert-card-footer">
-        <div className="expert-stat">
-          <Star size={14} fill="currentColor" />
-          <span>{Number(expert.rating_avg).toFixed(1)}</span>
-          <span className="text-muted">({expert.total_reviews})</span>
-        </div>
-        {expert.hourly_rate && (
-          <div className="expert-stat">
-            <Clock size={14} />
-            <span>{expert.hourly_rate} MAD/h</span>
-          </div>
+      {/* Rating */}
+      <div className="ec-rating">
+        <Star size={13} className="ec-star" />
+        <span className="ec-rating-val">{Number(expert.rating_avg ?? 0).toFixed(1)}</span>
+        <span className="ec-rating-count">({expert.total_reviews ?? 0} avis)</span>
+        {expert.certifications?.length > 0 && (
+          <span className="ec-cert-count">
+            <Award size={11} /> {expert.certifications.length}
+          </span>
         )}
-        <Link to={`/experts/${expert.id}`} className="btn btn-primary btn-sm">
-          Voir le profil
+      </div>
+
+      {/* Bio */}
+      {expert.bio && <p className="ec-bio">{expert.bio}</p>}
+
+      {/* Footer */}
+      <div className="ec-footer">
+        <Link to={`/experts/${expert.id}`} className="ec-btn">
+          Consulter
         </Link>
       </div>
     </motion.div>
@@ -55,110 +86,160 @@ function ExpertCard({ expert, index }) {
 }
 
 export default function ExpertsPage() {
-  const [search, setSearch] = useState('');
+  const [search,     setSearch]     = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [available, setAvailable] = useState('');
-  const [page, setPage] = useState(1);
+  const [available,  setAvailable]  = useState('');
+  const [page,       setPage]       = useState(1);
+  // { [expertId]: true/false } — set instantly by WebSocket, overrides API value
+  const [onlineMap,  setOnlineMap]  = useState({});
+  const subscribedRef = useRef(new Set());
 
-  const { data: experts, isLoading } = useExperts({
-    search: search || undefined,
-    category_id: categoryId || undefined,
-    available: available || undefined,
+  const { data: experts,    isLoading } = useExperts({
+    search:      search      || undefined,
+    category_id: categoryId  || undefined,
+    available:   available   || undefined,
     page,
     per_page: 12,
   });
-
   const { data: categories = [] } = useCategories();
 
-  const handleSearch = (e) => {
-    setSearch(e.target.value);
-    setPage(1);
-  };
+  // Subscribe to expert-presence.{id} for every expert on the current page
+  useEffect(() => {
+    const list = experts?.data ?? [];
+    if (list.length === 0) return;
+    const echo = getEcho();
+    const newIds = [];
+
+    list.forEach(({ id }) => {
+      if (subscribedRef.current.has(id)) return;
+      subscribedRef.current.add(id);
+      newIds.push(id);
+      echo.private(`expert-presence.${id}`).listen('.user.presence', (event) => {
+        setOnlineMap(prev => ({ ...prev, [id]: event.is_online === true }));
+      });
+    });
+
+    return () => {
+      newIds.forEach(id => {
+        subscribedRef.current.delete(id);
+        try {
+          echo.private(`expert-presence.${id}`).stopListening('.user.presence');
+          echo.leave(`expert-presence.${id}`);
+        } catch (_) {}
+      });
+    };
+  }, [experts?.data]);
+
+  const handleSearch = (e) => { setSearch(e.target.value); setPage(1); };
+
+  const total = experts?.meta?.total ?? experts?.data?.length ?? 0;
 
   return (
-    <div className="experts-page">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+    <div className="ep-page">
 
-        <div className="experts-header">
+      {/* ── Header ── */}
+      <div className="ep-header">
+        <div className="ep-header-bg" />
+        <div className="ep-header-content">
           <div>
-            <h1 className="page-title">Nos Experts</h1>
-            <p className="page-subtitle">Trouvez l'expert qui correspond à votre besoin</p>
+            <p className="ep-eyebrow">Annuaire médical</p>
+            <h1 className="ep-title">Nos Médecins</h1>
+            <p className="ep-subtitle">Consultez un médecin qualifié selon votre spécialité</p>
           </div>
+          {!isLoading && (
+            <div className="ep-header-stat">
+              <span className="ep-stat-val">{total}</span>
+              <span className="ep-stat-lbl"><Users size={11} /> Médecins</span>
+            </div>
+          )}
         </div>
+      </div>
 
-        {/* Filters */}
-        <div className="experts-filters">
-          <div className="search-input-wrap">
-            <Search size={16} className="search-icon" />
+      <div className="ep-divider" />
+
+      <div className="ep-body">
+
+        {/* ── Filters ── */}
+        <div className="ep-filters">
+          <div className="ep-search-wrap">
+            <Search size={15} className="ep-search-icon" />
             <input
               type="text"
-              placeholder="Rechercher un expert..."
-              className="search-input"
+              placeholder="Rechercher par nom, spécialité…"
+              className="ep-search"
               value={search}
               onChange={handleSearch}
             />
           </div>
 
-          <div className="filter-group">
-            <Filter size={16} />
-            <CustomSelect
-              value={categoryId}
-              onChange={(e) => { setCategoryId(e.target.value); setPage(1); }}
-              placeholder="Toutes les catégories"
-              options={categories.map((cat) => ({ value: cat.id, label: cat.name }))}
-            />
+          <div className="ep-filter-pills">
+            <button
+              className={`ep-pill ${categoryId === '' ? 'ep-pill--active' : ''}`}
+              onClick={() => { setCategoryId(''); setPage(1); }}
+            >
+              Toutes
+            </button>
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                className={`ep-pill ${categoryId == cat.id ? 'ep-pill--active' : ''}`}
+                onClick={() => { setCategoryId(cat.id); setPage(1); }}
+              >
+                {cat.name}
+              </button>
+            ))}
           </div>
 
-          <CustomSelect
-            value={available}
-            onChange={(e) => { setAvailable(e.target.value); setPage(1); }}
-            placeholder="Tous"
-            options={[{ value: '1', label: 'Disponibles uniquement' }]}
-          />
+          <button
+            className={`ep-avail-toggle ${available === '1' ? 'ep-avail-toggle--on' : ''}`}
+            onClick={() => { setAvailable(available === '1' ? '' : '1'); setPage(1); }}
+          >
+            <span className="ep-avail-toggle-dot" />
+            Disponibles
+          </button>
         </div>
 
-        {/* Results */}
+        {/* ── Results ── */}
         {isLoading ? (
-          <div className="experts-loading">
-            <Loader2 size={32} className="spin" style={{ color: 'var(--primary-500)' }} />
-          </div>
+          <div className="ep-loading"><Loader2 size={28} className="spin" /></div>
         ) : experts?.data?.length === 0 ? (
-          <div className="experts-empty">
-            <p>Aucun expert trouvé pour ces critères.</p>
+          <div className="ep-empty">
+            <Users size={36} />
+            <h3>Aucun médecin trouvé</h3>
+            <p>Essayez d'autres critères de recherche.</p>
           </div>
         ) : (
           <>
-            <div className="experts-grid">
-              {experts?.data?.map((expert, i) => (
-                <ExpertCard key={expert.id} expert={expert} index={i} />
+            <div className="ep-grid">
+              {experts.data.map((expert, i) => (
+                <ExpertCard
+                  key={expert.id}
+                  expert={expert}
+                  index={i}
+                  isOnline={onlineMap[expert.id] !== undefined
+                    ? onlineMap[expert.id]
+                    : (expert.user?.is_online ?? false)}
+                />
               ))}
             </div>
 
-            {/* Pagination */}
             {experts?.meta?.last_page > 1 && (
-              <div className="pagination">
-                <button
-                  className="btn btn-secondary btn-sm"
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Précédent
+              <div className="ep-pagination">
+                <button className="ep-page-btn" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                  ← Précédent
                 </button>
-                <span className="pagination-info">
-                  Page {experts.meta.current_page} / {experts.meta.last_page}
+                <span className="ep-page-info">
+                  {experts.meta.current_page} / {experts.meta.last_page}
                 </span>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  disabled={page === experts.meta.last_page}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Suivant
+                <button className="ep-page-btn" disabled={page === experts.meta.last_page} onClick={() => setPage(p => p + 1)}>
+                  Suivant →
                 </button>
               </div>
             )}
           </>
         )}
-      </motion.div>
+
+      </div>
     </div>
   );
 }

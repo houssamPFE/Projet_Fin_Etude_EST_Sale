@@ -8,6 +8,8 @@ import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'firebase_options.dart';
 
+import 'core/theme/theme_provider.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -48,11 +50,17 @@ class _NexoraAppState extends ConsumerState<NexoraApp> {
 
   @override
   Widget build(BuildContext context) {
+    final themePreset = ref.watch(themeProvider);
     return MaterialApp.router(
       title: 'Nexora',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
+      theme: AppTheme.getTheme(themePreset),
       routerConfig: ref.watch(routerProvider),
+      builder: (context, child) => GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: child!,
+      ),
     );
   }
 }

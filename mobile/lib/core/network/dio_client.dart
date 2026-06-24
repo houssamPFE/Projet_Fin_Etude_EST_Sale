@@ -1,17 +1,24 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../router/app_router.dart';
 import '../services/token_storage.dart';
 
-// Android emulator → 10.0.2.2 maps to host machine's localhost
-const kBaseUrl = 'http://10.0.2.2:8000/api/v1';
+// Retrieve custom BASE_URL if passed via --dart-define=BASE_URL, default to emulator IP
+const kBaseUrl = String.fromEnvironment(
+  'BASE_URL',
+  defaultValue: 'http://10.0.2.2:8000/api/v1',
+);
 
-/// Rewrites Docker-internal storage hostnames to 10.0.2.2 so the Android
-/// emulator can reach MinIO running on the host machine.
+final String _apiHost = Uri.parse(kBaseUrl).host;
+
+/// Rewrites Docker-internal storage hostnames to the base URL host so the
+/// device (emulator or real phone) can reach MinIO running on the host machine.
 String fixStorageUrl(String url) {
   return url
-      .replaceFirst(RegExp(r'http://minio:'), 'http://10.0.2.2:')
-      .replaceFirst(RegExp(r'http://localhost:'), 'http://10.0.2.2:')
-      .replaceFirst(RegExp(r'http://127\.0\.0\.1:'), 'http://10.0.2.2:');
+      .replaceFirst(RegExp(r'http://minio:'), 'http://$_apiHost:')
+      .replaceFirst(RegExp(r'http://localhost:'), 'http://$_apiHost:')
+      .replaceFirst(RegExp(r'http://127\.0\.0\.1:'), 'http://$_apiHost:');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -77,6 +84,9 @@ class _RefreshInterceptor extends QueuedInterceptor {
       return handler.resolve(retried);
     } catch (_) {
       await _storage.deleteAll();
+      // Notify the router so it re-evaluates auth state and redirects to
+      // the welcome screen instead of leaving the user on a broken home screen.
+      notifyAuthChanged();
       return handler.next(err);
     }
   }
@@ -92,6 +102,28 @@ class _RefreshInterceptor extends QueuedInterceptor {
           },
         ),
       );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Maintenance interceptor — on 503 + maintenance flag, redirect to /maintenance
+// Login calls are exempt: the login screen handles maintenance inline.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MaintenanceInterceptor extends Interceptor {
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final isLoginCall = err.requestOptions.path.contains('/auth/login');
+    if (!isLoginCall &&
+        err.response?.statusCode == 503 &&
+        err.response?.data is Map &&
+        (err.response?.data as Map)['maintenance'] == true) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null) {
+        GoRouter.of(ctx).go(AppRoutes.maintenance);
+      }
+    }
+    handler.next(err);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,6 +143,7 @@ final dioProvider = Provider<Dio>((ref) {
       },
     ),
   );
+  dio.interceptors.add(_MaintenanceInterceptor());
   dio.interceptors.add(_AuthInterceptor(storage));
   dio.interceptors.add(_RefreshInterceptor(storage));
   return dio;

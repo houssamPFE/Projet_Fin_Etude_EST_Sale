@@ -32,6 +32,13 @@ class MessageService
             'content'         => $content,
         ]);
 
+        if ($senderType === MessageSenderType::User) {
+            $user->update([
+                'last_activity_at'   => now(),
+                'last_activity_type' => 'Conversation',
+            ]);
+        }
+
         // Trigger AI processing for user messages in AI-mode conversations
         if ($senderType === MessageSenderType::User && $conversation->status === ConversationStatus::Ai) {
             ProcessMessageJob::dispatch($message);
@@ -73,6 +80,8 @@ class MessageService
 
     /**
      * Send a file message. Upload to S3, create message with media_url.
+     * For image files in AI-mode conversations, dispatch ProcessMessageJob
+     * so the vision model can analyse the image and reply to the patient.
      */
     public function sendFile(Conversation $conversation, User $user, UploadedFile $file): Message
     {
@@ -83,6 +92,17 @@ class MessageService
             's3'
         );
 
+        $mime    = $file->getMimeType() ?? '';
+        $isImage = in_array($mime, [
+            'image/jpeg', 'image/jpg', 'image/png',
+            'image/gif',  'image/webp',
+        ], true);
+
+        $metadata = $isImage ? [
+            'is_image'  => true,
+            'mime_type' => $mime,
+        ] : null;
+
         $message = Message::create([
             'conversation_id' => $conversation->id,
             'sender_type'     => $senderType,
@@ -90,7 +110,13 @@ class MessageService
             'type'            => MessageType::File,
             'content'         => $file->getClientOriginalName(),
             'media_url'       => $path,
+            'metadata'        => $metadata,
         ]);
+
+        // Trigger AI vision analysis for patient image uploads in AI-mode conversations
+        if ($isImage && $senderType === MessageSenderType::User && $conversation->status === ConversationStatus::Ai) {
+            ProcessMessageJob::dispatch($message);
+        }
 
         event(new MessageSent($message));
 

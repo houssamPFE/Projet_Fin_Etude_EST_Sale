@@ -12,6 +12,12 @@ class AuthUser {
   final bool twoFactorEnabled;
   final String language;
 
+  // ── Subscription plan ──────────────────────────────────────────────────────
+  final String plan;                   // 'free' | 'pro' | 'premium'
+  final int consultationCredits;
+  final DateTime? planExpiresAt;
+  final bool planIsActive;
+
   const AuthUser({
     required this.id,
     required this.name,
@@ -21,6 +27,10 @@ class AuthUser {
     this.createdAt,
     this.twoFactorEnabled = false,
     this.language = 'fr',
+    this.plan = 'free',
+    this.consultationCredits = 0,
+    this.planExpiresAt,
+    this.planIsActive = false,
   });
 
   factory AuthUser.fromJson(Map<String, dynamic> json) => AuthUser(
@@ -34,6 +44,12 @@ class AuthUser {
             : null,
         twoFactorEnabled: json['two_factor_enabled'] as bool? ?? false,
         language: json['language'] as String? ?? 'fr',
+        plan: json['plan'] as String? ?? 'free',
+        consultationCredits: json['consultation_credits'] as int? ?? 0,
+        planExpiresAt: json['plan_expires_at'] is String
+            ? DateTime.tryParse(json['plan_expires_at'] as String)
+            : null,
+        planIsActive: json['plan_is_active'] as bool? ?? false,
       );
 
   String get firstName {

@@ -42,7 +42,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                 _buildHeader(context),
                 Expanded(
                   child: userAsync.when(
-                    loading: () => const Center(
+                    loading: () => Center(
                       child: CircularProgressIndicator(color: AppColors.primary),
                     ),
                     error: (e, s) => _ErrorRetry(
@@ -468,7 +468,7 @@ class _TwoFactorCardState extends ConsumerState<_TwoFactorCard> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(
+                      Icon(
                         Icons.copy_rounded,
                         size: 14,
                         color: AppColors.textTertiary,
@@ -691,7 +691,7 @@ class _ChangePasswordCardState extends ConsumerState<_ChangePasswordCard> {
                     color: AppColors.surfaceElevated,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.lock_outline_rounded,
                     size: 20,
                     color: AppColors.primaryLight,

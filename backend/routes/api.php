@@ -24,9 +24,11 @@ use App\Http\Controllers\Api\V1\Conversation\ConversationDeleteController;
 use App\Http\Controllers\Api\V1\Conversation\ConversationEscalateController;
 use App\Http\Controllers\Api\V1\Conversation\ConversationListController;
 use App\Http\Controllers\Api\V1\Conversation\ConversationRateController;
+use App\Http\Controllers\Api\V1\Conversation\ConversationReportController;
 use App\Http\Controllers\Api\V1\Conversation\ConversationShowController;
 use App\Http\Controllers\Api\V1\Conversation\ConversationUpdateController;
 use App\Http\Controllers\Api\V1\Conversation\MessageAudioController;
+use App\Http\Controllers\Api\V1\Conversation\MessageFileController;
 use App\Http\Controllers\Api\V1\Conversation\MessageListController;
 use App\Http\Controllers\Api\V1\Conversation\MessageReadController;
 use App\Http\Controllers\Api\V1\Conversation\MessageDeleteController;
@@ -46,6 +48,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Admin\AdminAiLogController;
 use App\Http\Controllers\Api\V1\Admin\AdminCategoryController;
 use App\Http\Controllers\Api\V1\Admin\AdminConversationController;
+use App\Http\Controllers\Api\V1\Admin\AdminConversationCleanupController;
 use App\Http\Controllers\Api\V1\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\AdminExpertController;
 use App\Http\Controllers\Api\V1\Admin\AdminExpertListController;
@@ -71,6 +74,7 @@ use App\Http\Controllers\Api\V1\User\HeartbeatController;
 use App\Http\Controllers\Api\V1\User\OfflineController;
 use App\Http\Controllers\Api\V1\User\UserAvatarController;
 use App\Http\Controllers\Api\V1\User\FcmTokenController;
+use App\Http\Controllers\Api\V1\User\UserPlanController;
 use App\Http\Controllers\Api\V1\User\UserProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -132,6 +136,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('account', DeleteAccountController::class);
         Route::post('heartbeat', HeartbeatController::class);
         Route::post('offline',   OfflineController::class);
+        Route::get('plan',       UserPlanController::class);
     });
 
     // ================================================================
@@ -174,11 +179,13 @@ Route::prefix('v1')->group(function () {
         Route::post('{conversation}/escalate', ConversationEscalateController::class);
         Route::put('{conversation}/close', ConversationCloseController::class);
         Route::post('{conversation}/rate', ConversationRateController::class);
+        Route::get('{conversation}/report', ConversationReportController::class);
 
         // Messages
         Route::get('{conversation}/messages', MessageListController::class);
         Route::post('{conversation}/messages', MessageSendController::class);
         Route::post('{conversation}/messages/audio', MessageAudioController::class);
+        Route::post('{conversation}/messages/file', MessageFileController::class);
         Route::put('{conversation}/messages/{message}/read', [MessageReadController::class, 'markOne']);
         Route::put('{conversation}/messages/read-all', [MessageReadController::class, 'markAll']);
         Route::delete('{conversation}/messages/{message}', MessageDeleteController::class);
@@ -195,9 +202,12 @@ Route::prefix('v1')->group(function () {
 
         // Users
         Route::get('users', [AdminUserController::class, 'index']);
+        Route::get('users/stats', [AdminUserController::class, 'stats']);
+        Route::put('users/bulk-suspend', [AdminUserController::class, 'bulkSuspend']);
         Route::put('users/{user}', [AdminUserController::class, 'update']);
         Route::put('users/{user}/toggle', [AdminUserController::class, 'toggle']);
         Route::put('users/{user}/security', [AdminUserController::class, 'updateSecurity']);
+        Route::put('users/{user}/plan', [AdminUserController::class, 'changePlan']);
 
         // Experts — list all (with status filter) + legacy pending endpoint
         Route::get('experts', [AdminExpertController::class, 'index']);
@@ -215,6 +225,8 @@ Route::prefix('v1')->group(function () {
 
         // Conversations
         Route::get('conversations', AdminConversationController::class);
+        Route::get('conversations/cleanup/preview', [AdminConversationCleanupController::class, 'preview']);
+        Route::delete('conversations/cleanup', [AdminConversationCleanupController::class, 'destroy']);
 
         // Payments
         Route::get('payments', AdminPaymentsController::class);

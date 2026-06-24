@@ -201,6 +201,7 @@ class _OtpBoxState extends State<_OtpBox> {
       height: 56,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           color: focused ? const Color(0x1A6366F1) : AppColors.surface,
@@ -216,15 +217,19 @@ class _OtpBoxState extends State<_OtpBox> {
           controller: widget.controller,
           focusNode: widget.focusNode,
           textAlign: TextAlign.center,
+          textAlignVertical: TextAlignVertical.center,
           keyboardType: TextInputType.number,
           inputFormatters: [
             LengthLimitingTextInputFormatter(1),
             FilteringTextInputFormatter.digitsOnly,
           ],
-          style: AppTextStyles.headlineMedium,
+          style: AppTextStyles.headlineLarge,
           decoration: const InputDecoration(
             border: InputBorder.none,
             counterText: '',
+            contentPadding: EdgeInsets.zero,
+            isDense: true,
+            filled: false,
           ),
           onChanged: widget.onChanged,
         ),

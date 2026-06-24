@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Conversation;
 
+use App\Events\ConversationDeleted;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use Illuminate\Http\JsonResponse;
@@ -18,11 +19,19 @@ class ConversationDeleteController extends Controller
     {
         $user = $request->user();
 
-        if ($user->id !== $conversation->user_id && ! $user->isAdmin()) {
+        $isOwner  = $user->id === $conversation->user_id;
+        $isExpert = $user->expert && $user->expert->id === $conversation->expert_id;
+
+        if (! $isOwner && ! $isExpert && ! $user->isAdmin()) {
             return response()->json(['message' => 'Non autorisé.'], 403);
         }
 
+        $conversationId = $conversation->id;
+        $userId = $conversation->user_id;
+
         $conversation->delete();
+
+        broadcast(new ConversationDeleted($conversationId, $userId))->toOthers();
 
         return response()->json(['message' => 'Conversation supprimée.']);
     }

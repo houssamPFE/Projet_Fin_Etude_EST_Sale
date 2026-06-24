@@ -31,7 +31,7 @@ class ConversationShowController extends Controller
         $conversation->load(['user', 'category', 'expert.user', 'review'])
             ->loadCount([
                 'messages',
-                'unreadMessages' => fn ($q) => $q->whereIn('sender_type', $unreadSenderTypes),
+                'unreadMessages' => fn ($q) => $q->whereNull('read_at')->whereIn('sender_type', $unreadSenderTypes),
             ]);
 
         return response()->json([

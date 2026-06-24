@@ -595,6 +595,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       height: 62,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           color: focused
@@ -624,17 +625,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           controller: _otpControllers[index],
           focusNode: _otpFocusNodes[index],
           textAlign: TextAlign.center,
+          textAlignVertical: TextAlignVertical.center,
           keyboardType: TextInputType.number,
           inputFormatters: [
             LengthLimitingTextInputFormatter(1),
             FilteringTextInputFormatter.digitsOnly,
           ],
-          style: AppTextStyles.headlineMedium.copyWith(
+          style: AppTextStyles.headlineLarge.copyWith(
             color: filled ? AppColors.primaryLight : AppColors.textPrimary,
           ),
           decoration: const InputDecoration(
             border: InputBorder.none,
             counterText: '',
+            contentPadding: EdgeInsets.zero,
+            isDense: true,
+            filled: false,
           ),
           onChanged: (v) => _onOtpDigitChanged(index, v),
         ),
@@ -774,8 +779,8 @@ class _LegalNotice extends StatelessWidget {
     return RichText(
       text: TextSpan(
         style: AppTextStyles.caption,
-        children: const [
-          TextSpan(text: 'En créant un compte, vous acceptez nos '),
+        children: [
+          const TextSpan(text: 'En créant un compte, vous acceptez nos '),
           TextSpan(
             text: 'Conditions d\'utilisation',
             style: TextStyle(
@@ -783,7 +788,7 @@ class _LegalNotice extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          TextSpan(text: ' et notre '),
+          const TextSpan(text: ' et notre '),
           TextSpan(
             text: 'Politique de confidentialité',
             style: TextStyle(
@@ -791,7 +796,7 @@ class _LegalNotice extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          TextSpan(text: '.'),
+          const TextSpan(text: '.'),
         ],
       ),
     );

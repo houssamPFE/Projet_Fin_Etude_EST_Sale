@@ -17,21 +17,21 @@ class Expert extends Model
         'user_id',
         'category_id',
         'bio',
+        'city',
         'certifications',
-        'hourly_rate',
         'rating_avg',
         'total_reviews',
         'is_available',
         'status',
         'validated_at',
         'validated_by',
+        'rejection_reason',
     ];
 
     protected function casts(): array
     {
         return [
             'certifications' => 'array',
-            'hourly_rate' => 'decimal:2',
             'rating_avg' => 'decimal:2',
             'is_available' => 'boolean',
             'status' => ExpertStatus::class,

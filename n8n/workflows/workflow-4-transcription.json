@@ -1,0 +1,203 @@
+{
+  "name": "Workflow 4 — Audio Transcription (Groq Whisper)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "transcribe-audio",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w4-webhook",
+      "name": "Receive Transcription Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-800, 300],
+      "webhookId": "w4-transcribe-audio"
+    },
+
+    {
+      "parameters": {
+        "jsCode": "const webhookData = $('Receive Transcription Request').first().json;\n\n// ─── Security: verify X-N8N-Secret header ─────────────────────────────\nconst receivedSecret = webhookData.headers?.['x-n8n-secret']\n                    || webhookData.headers?.['X-N8N-Secret']\n                    || '';\nconst expectedSecret = 'change-me-in-production';\n\nif (receivedSecret !== expectedSecret) {\n  throw new Error('401: Invalid X-N8N-Secret header.');\n}\n\n// ─── Extract body ──────────────────────────────────────────────────────\nconst body = webhookData.body || webhookData;\n\nconst messageId      = body.message_id;\nconst conversationId = body.conversation_id;\nconst audioUrl       = body.audio_url;\nconst language       = body.language || 'fr';\n\nif (!messageId || !conversationId || !audioUrl) {\n  throw new Error('400: Missing required fields: message_id, conversation_id, audio_url');\n}\n\nreturn [{\n  json: {\n    messageId,\n    conversationId,\n    audioUrl,\n    language,\n    laravelUrl: 'http://nginx:80',\n    n8nSecret:  'change-me-in-production',\n    groqModel:  'whisper-large-v3',\n  }\n}];"
+      },
+      "id": "w4-validate",
+      "name": "Validate Auth & Extract Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-576, 300]
+    },
+
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.audioUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "w4-download-s3",
+      "name": "Download Audio from S3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-352, 300],
+      "notes": "Downloads the audio file from the S3 presigned URL as binary. Stored in $binary.data for the next node."
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.groq.com/openai/v1/audio/transcriptions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "parameterType": "formData",
+              "name": "model",
+              "value": "whisper-large-v3"
+            },
+            {
+              "parameterType": "formData",
+              "name": "response_format",
+              "value": "json"
+            },
+            {
+              "parameterType": "formData",
+              "name": "language",
+              "value": "={{ $('Validate Auth & Extract Payload').first().json.language }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "w4-groq-whisper",
+      "name": "Transcribe with Groq Whisper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-128, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "F9PQJn8MUUr6pP28",
+          "name": "Header Auth account"
+        }
+      },
+      "notes": "Sends audio file to Groq Whisper (whisper-large-v3) via multipart/form-data. Returns { text, language, duration }."
+    },
+
+    {
+      "parameters": {
+        "jsCode": "const whisperReply = $input.first().json;\nconst prevData     = $('Validate Auth & Extract Payload').first().json;\n\n// ─── Groq Whisper returns { text, language, duration, segments, ... } ──\nconst transcription = String(whisperReply.text || '').trim();\nconst duration      = Number(whisperReply.duration || 0);\nconst language      = whisperReply.language || prevData.language || 'fr';\n\nif (!transcription) {\n  // Don't crash — send back an empty transcription so Laravel can handle gracefully\n  return [{\n    json: {\n      callbackPayload: {\n        message_id:      prevData.messageId,\n        conversation_id: prevData.conversationId,\n        transcription:   '',\n        language,\n        model:           prevData.groqModel,\n        duration:        0,\n        success:         false,\n      },\n      laravelUrl: prevData.laravelUrl,\n      n8nSecret:  prevData.n8nSecret,\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    callbackPayload: {\n      message_id:      prevData.messageId,\n      conversation_id: prevData.conversationId,\n      transcription,\n      language,\n      model:           prevData.groqModel,\n      duration,\n      success:         true,\n    },\n    laravelUrl: prevData.laravelUrl,\n    n8nSecret:  prevData.n8nSecret,\n  }\n}];"
+      },
+      "id": "w4-parse",
+      "name": "Parse Transcription",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [96, 300]
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.laravelUrl }}/api/v1/ai/transcription-complete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-N8N-Secret",
+              "value": "={{ $json.n8nSecret }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.callbackPayload) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "w4-callback-laravel",
+      "name": "Callback Laravel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [320, 300],
+      "notes": "POSTs { message_id, transcription } to Laravel. Laravel saves the transcription then dispatches ProcessMessageJob → W1 takes over."
+    },
+
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"processing\", \"message\": \"Transcription started. Callback incoming.\" }",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "w4-respond",
+      "name": "Respond 202 to Laravel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [544, 300]
+    }
+  ],
+
+  "connections": {
+    "Receive Transcription Request": {
+      "main": [
+        [{ "node": "Validate Auth & Extract Payload", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Auth & Extract Payload": {
+      "main": [
+        [{ "node": "Download Audio from S3", "type": "main", "index": 0 }]
+      ]
+    },
+    "Download Audio from S3": {
+      "main": [
+        [{ "node": "Transcribe with Groq Whisper", "type": "main", "index": 0 }]
+      ]
+    },
+    "Transcribe with Groq Whisper": {
+      "main": [
+        [{ "node": "Parse Transcription", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Transcription": {
+      "main": [
+        [{ "node": "Callback Laravel", "type": "main", "index": 0 }]
+      ]
+    },
+    "Callback Laravel": {
+      "main": [
+        [{ "node": "Respond 202 to Laravel", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "nexora" }]
+}

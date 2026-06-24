@@ -22,6 +22,10 @@ class AdminExpertController extends Controller
                 fn ($q) => $q->where('status', $request->status)
             )
             ->when(
+                $request->boolean('exclude_pending'),
+                fn ($q) => $q->where('status', '!=', 'pending')
+            )
+            ->when(
                 $request->filled('search'),
                 fn ($q) => $q->whereHas(
                     'user',

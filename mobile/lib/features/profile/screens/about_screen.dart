@@ -582,7 +582,7 @@ class _LegalRow extends StatelessWidget {
         child: Row(
           children: [
             Expanded(child: Text(label, style: AppTextStyles.titleSmall)),
-            const Icon(
+            Icon(
               Icons.open_in_new_rounded,
               size: 15,
               color: AppColors.textTertiary,
@@ -680,7 +680,7 @@ class _DisclaimerBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.info_outline_rounded,
             color: AppColors.primaryLight,
             size: 18,

@@ -1,0 +1,359 @@
+{
+  "name": "workflow 1",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analyze-message",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ac453f10-ba0c-40ac-9c30-150fcf2fb62a",
+      "name": "Receive Message from Laravel",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1264, 1296],
+      "webhookId": "35e88013-88b4-4919-b988-a2c9b057b4f3"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "982c93f5-05c1-4bbd-9c67-836bf5c42469",
+      "name": "Load Config from Env",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-1056, 1296],
+      "notes": "Reads env vars using expressions (allowed outside Code nodes) and merges them with the webhook payload so downstream Code nodes can access them via $json."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Config from Set node, raw webhook from named node reference\nconst config      = $input.first().json;\nconst webhookData = $('Receive Message from Laravel').first().json;\n\n// ─── Security: verify X-N8N-Secret header ─────────────────────────────\nconst receivedSecret = webhookData.headers?.['x-n8n-secret']\n                    || webhookData.headers?.['X-N8N-Secret']\n                    || '';\nconst expectedSecret = config.n8nSecret || 'change-me-in-production';\n\nif (receivedSecret !== expectedSecret) {\n  throw new Error('401: Invalid X-N8N-Secret header. Received: [' + receivedSecret + ']');\n}\n\n// ─── Extract body ──────────────────────────────────────────────────────\nconst body = webhookData.body || webhookData;\n\nconst messageId      = body.message_id;\nconst conversationId = body.conversation_id;\nconst content        = body.content;\nconst categoryId     = body.category_id  || null;\nconst history        = body.history       || [];\nconst mediaUrl       = body.media_url     || null;\nconst isImage        = body.is_image      === true;\n\nif (!messageId || !conversationId || (!content && !isImage)) {\n  throw new Error('400: Missing required fields');\n}\n\nconst historyMessages = history.slice(-10).map(turn => ({\n  role:    turn.role === 'user' ? 'user' : 'assistant',\n  content: turn.content || '[audio]'\n}));\n\nreturn [{\n  json: {\n    messageId, conversationId, categoryId, content, historyMessages,\n    mediaUrl, isImage,\n    laravelUrl:  config.laravelUrl  || 'http://nginx:80',\n    n8nSecret:   config.n8nSecret   || 'change-me-in-production',\n    groqApiKey:  config.groqApiKey  || '',\n    groqModel:   config.groqModel   || 'llama-3.3-70b-versatile',\n    groqBaseUrl: config.groqBaseUrl || 'https://api.groq.com/openai/v1',\n  }\n}];"
+      },
+      "id": "9b4eb2d1-19f7-4868-873d-8b03cc54fc3e",
+      "name": "Validate Auth & Extract Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-832, 1296]
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════════════════\n// W6 — Content & Safety Moderation\n// Runs BEFORE the AI so flagged messages never reach Groq.\n//\n// Three checks (priority order):\n//   1. Self-harm / suicidal ideation  → emergency, escalate to psychiatrie\n//   2. Off-topic (non-medical)        → polite redirect\n//   3. Abusive language               → polite warning\n//\n// Clean messages pass straight through unchanged.\n// ════════════════════════════════════════════════════════════════════\n\nconst data    = $input.first().json;\nconst content = String(data.content || '').toLowerCase();\n\n// ─── 1. Self-harm / suicidal ideation ──────────────────────────────\nconst selfHarmPatterns = [\n  /suicid/i,\n  /me tuer/i,\n  /tuer moi/i,\n  /envie de mourir/i,\n  /je veux mourir/i,\n  /plus envie de vivre/i,\n  /fin de ma vie/i,\n  /mettre fin à ma vie/i,\n  /me faire du mal/i,\n  /je souffre trop/i,\n  /انتحار/,\n  /أريد الموت/,\n  /قتل نفسي/,\n  /أذى نفسي/,\n  /إيذاء نفسي/,\n  /بغيت نموت/,\n  /نقتل روحي/,\n];\nconst isSelfHarm = selfHarmPatterns.some(p => p.test(content));\n\n// ─── 2. Off-topic (clearly non-medical) ────────────────────────────\n// Only flag when obvious off-topic keywords appear AND no medical hints,\n// to avoid blocking a real medical question by accident.\nconst offTopicPatterns = [\n  /recette de cuisine/i,\n  /résultat.*foot/i,\n  /match de foot/i,\n  /jeux? vidéo/i,\n  /cryptomonnaie/i,\n  /traduction.*texte/i,\n  /paroles? (de )?chanson/i,\n  /météo.*demain/i,\n  /score.*match/i,\n];\nconst medicalHints = [\n  /douleur/i,\n  /symptôme/i,\n  /malade/i,\n  /fièvre/i,\n  /médecin/i,\n  /santé/i,\n  /médicament/i,\n  /traitement/i,\n  /grossesse/i,\n  /consultat/i,\n  /صحة/,\n  /مريض/,\n  /ألم/,\n  /دواء/,\n  /طبيب/,\n];\nconst isOffTopic =\n  offTopicPatterns.some(p => p.test(content)) &&\n  !medicalHints.some(p => p.test(content));\n\n// ─── 3. Abusive language ────────────────────────────────────────────\nconst abusePatterns = [\n  /\\b(connard|salope|enculé|va te faire foutre|fils de pute)\\b/i,\n  /\\b(مشنوق|كلب|حقير|عاهرة)\\b/,\n];\nconst isAbuse = abusePatterns.some(p => p.test(content));\n\n// ─── Self-harm → emergency + escalate + crisis resources ───────────\nif (isSelfHarm) {\n  return [{\n    json: {\n      ...data,\n      moderation: {\n        flagged: true,\n        reason: 'self_harm',\n        callbackPayload: {\n          message_id:          data.messageId,\n          conversation_id:     data.conversationId,\n          response:            `Je sens que vous traversez un moment très difficile. Vous n'êtes pas seul(e).\n\n🆘 Besoin d'aide immédiate ?\n📞 SOS Détresse Maroc : 0800 004 747 (gratuit, 24h/24)\n📞 SAMU : 15\n\nJe contacte un médecin pour vous maintenant.`,\n          confidence:          1.0,\n          escalate:            true,\n          urgency_level:       'emergency',\n          specialty_suggested: 'psychiatrie',\n          intent:              'self_harm',\n          suggest_expert:      false,\n          requires_premium:    false,\n          actions:             [{ type: 'call_samu', label: 'Appeler le 15 maintenant' }],\n          model:               'moderation',\n          tokens_used:         0,\n        }\n      }\n    }\n  }];\n}\n\n// ─── Off-topic → polite redirect ──────────────────────────────────\nif (isOffTopic) {\n  return [{\n    json: {\n      ...data,\n      moderation: {\n        flagged: true,\n        reason: 'off_topic',\n        callbackPayload: {\n          message_id:          data.messageId,\n          conversation_id:     data.conversationId,\n          response:            `Je suis Nexora, votre assistant médical. Je suis ici uniquement pour vous aider avec vos questions de santé.\n\nSi vous avez un symptôme, une douleur ou une question médicale, je suis à votre disposition. 😊`,\n          confidence:          1.0,\n          escalate:            false,\n          urgency_level:       'low',\n          specialty_suggested: null,\n          intent:              'off_topic',\n          suggest_expert:      false,\n          requires_premium:    false,\n          actions:             [],\n          model:               'moderation',\n          tokens_used:         0,\n        }\n      }\n    }\n  }];\n}\n\n// ─── Abuse → polite warning ────────────────────────────────────────\nif (isAbuse) {\n  return [{\n    json: {\n      ...data,\n      moderation: {\n        flagged: true,\n        reason: 'abuse',\n        callbackPayload: {\n          message_id:          data.messageId,\n          conversation_id:     data.conversationId,\n          response:            `Cette plateforme est un espace médical respectueux. Merci d'utiliser un langage approprié pour que je puisse vous aider correctement.`,\n          confidence:          1.0,\n          escalate:            false,\n          urgency_level:       'low',\n          specialty_suggested: null,\n          intent:              'abuse',\n          suggest_expert:      false,\n          requires_premium:    false,\n          actions:             [],\n          model:               'moderation',\n          tokens_used:         0,\n        }\n      }\n    }\n  }];\n}\n\n// ─── Clean — pass through to AI ─────────────────────────────────────\nreturn [{ json: { ...data, moderation: { flagged: false, reason: null } } }];"
+      },
+      "id": "w6-moderate-content",
+      "name": "Moderate Content (W6)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-608, 1296]
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "moderation-flagged-check",
+              "leftValue": "={{ $json.moderation.flagged }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "w6-is-flagged",
+      "name": "Is Flagged?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-384, 1296]
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.laravelUrl }}/api/v1/ai/callback",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-N8N-Secret", "value": "={{ $json.n8nSecret }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Accept",        "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.moderation.callbackPayload) }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "w6-callback-moderated",
+      "name": "Callback Laravel (Moderated)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-160, 1152]
+    },
+
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"processing\", \"message\": \"Moderated. Callback incoming.\" }",
+        "options": { "responseCode": 202 }
+      },
+      "id": "w6-respond-moderated",
+      "name": "Respond 202 (Moderated)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [64, 1152]
+    },
+
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst systemPrompt = `Tu es Nexora, un assistant médical IA pour l'Afrique francophone (Maroc en priorité).\nTu te comportes comme un médecin ami : intelligent, calme, rassurant et direct.\nTu aides vraiment le patient. Tu ne le renvoies pas vers un médecin à la moindre occasion.\n\nPHILOSOPHIE :\nLa majorité des problèmes de santé courants ont des réponses simples et claires.\nUn vrai médecin ami ne dit pas \"consulte un médecin\" pour un simple mal de tête.\nTu gères seul les cas simples. Tu suggères un médecin seulement quand c'est vraiment nécessaire.\n\nCAS OÙ TU GÈRES SEUL — actions = [], suggest_expert = false :\n- Symptômes courants : rhume, grippe légère, mal de tête, fatigue, nausées légères, douleurs musculaires\n- Questions sur médicaments courants (paracétamol, ibuprofène, etc.)\n- Questions de prévention, hygiène, alimentation, sommeil\n- Suivi de maladies chroniques stables (tension connue, diabète sous contrôle)\n- Symptômes qui s'améliorent ou qui ont disparu\n→ Donne des conseils pratiques clairs et directs. C'est tout.\nExemple : mal de tête → boire de l'eau, se reposer, paracétamol si besoin, éviter les écrans.\n\nCAS OÙ TU SUGGÈRES UN MÉDECIN — suggest_expert = true, actions = [find_expert, continue_ai] :\nSeulement si TOUTES ces conditions sont vraies :\n1. La conversation a eu lieu (au moins 2-3 échanges — jamais sur le premier message)\n2. Les symptômes sont complexes, inhabituels, ou ne correspondent à aucun cas simple\n3. Plusieurs systèmes sont impliqués, ou les symptômes s'aggravent malgré tes conseils\n4. La situation nécessite un examen physique, une analyse, ou une ordonnance\n5. Tu as donné tout ce que tu pouvais et ça ne suffit pas\n→ Formule honnêtement : \"D'après tout ce que vous décrivez, je pense qu'une consultation médicale serait utile. Voulez-vous que je vous trouve un médecin disponible ?\"\n→ Le patient peut dire non et continuer avec toi — c'est parfaitement acceptable.\n\nURGENCES RÉELLES — urgency_level = \"emergency\", escalate = true :\nUniquement pour des signes vitaux en danger immédiat :\n- Douleur thoracique intense + difficulté à respirer simultanément\n- Signes d'AVC : visage asymétrique, bras qui tombe, parole incompréhensible soudainement\n- Perte de conscience ou convulsions actives\n- Hémorragie sévère incontrôlable\n- Idées suicidaires avec plan précis et immédiat\n- Réaction allergique grave : gonflement gorge, difficulté à respirer\n- Nourrisson < 3 mois avec fièvre > 38°C\n→ Réponse TRÈS courte, 1-2 phrases max, action immédiate uniquement.\n→ \"Appelez le 15 (SAMU) immédiatement ou rendez-vous aux urgences.\"\n→ Pas de conseils, pas de questions supplémentaires.\n\nIMPORTANT — UNE DOULEUR DANS LA POITRINE SEULE n'est PAS une urgence par défaut :\nPose des questions d'abord : depuis quand ? intensité 0-10 ? irradie dans le bras ou la mâchoire ? difficulté à respirer ? âge ? antécédents cardiaques ?\nCe n'est une urgence QUE si les réponses révèlent des signes graves combinés.\n\nRÈGLES DE CONVERSATION :\n1. Ne JAMAIS poser de diagnostic définitif.\n2. Ne JAMAIS prescrire de médicament avec dosage précis, antibiotiques, corticoïdes.\n3. Pour les cas simples : donne des conseils pratiques directs sans hésiter.\n4. Réponds dans la même langue que le patient (français, darija, arabe, ou mélange).\n5. Ne répète pas le disclaimer à chaque message — seulement pour les informations importantes.\n6. Pour les salutations : accueille brièvement, demande ce qui se passe.\n7. Si le patient dit \"oui\", \"ok\", \"d'accord\" : ne répète pas la question. Demande les détails manquants.\n8. Si le patient demande explicitement un médecin : suggest_expert = true, escalate = true, réponse courte de confirmation (CAS A ci-dessous).\n9. Pose des questions ciblées, pas une liste de 10 questions à la fois.\n\nSPÉCIALITÉS (slugs exacts) :\nmedecine-generale, pediatrie, cardiologie, dermatologie, gynecologie, psychiatrie, dentisterie, ophtalmologie\n\nFORMAT DE SORTIE : JSON valide uniquement, sans markdown, sans blocs de code.\n{\n  \"language\": \"fr\" ou \"ar\",\n  \"specialty\": \"<slug>\",\n  \"urgency_level\": \"low\" | \"moderate\" | \"urgent\" | \"emergency\",\n  \"confidence\": <float 0.0-1.0>,\n  \"escalate\": <boolean>,\n  \"suggest_expert\": <boolean>,\n  \"intent\": \"<string ou null>\",\n  \"requires_premium\": false,\n  \"response\": \"<réponse>\",\n  \"actions\": []\n}\n\nRÈGLES STRICTES POUR actions[] :\n\nCAS A — patient demande EXPLICITEMENT un médecin (\"je veux un docteur\", \"consulter\", etc.) :\n→ suggest_expert: true\n→ response: réponse COURTE de confirmation (\"Bien sûr ! Voici les médecins disponibles.\")\n→ actions: [{\"type\":\"find_expert\",\"label\":\"Voir les médecins disponibles\",\"specialty\":\"<slug>\"},{\"type\":\"continue_ai\",\"label\":\"Non, continuer avec l'IA\"}]\n→ NE PAS poser de question — le patient a déjà exprimé sa demande.\n\nCAS B — C'est TOI qui suggères un médecin (cas complexe après plusieurs échanges) :\n→ suggest_expert: true\n→ response: explication + question (\"Je pense qu'une consultation serait utile. Souhaitez-vous voir un médecin ?\")\n→ actions: [{\"type\":\"find_expert\",\"label\":\"Oui, consulter un médecin\",\"specialty\":\"<slug>\"},{\"type\":\"continue_ai\",\"label\":\"Non, continuer avec l'IA\"}]\n\nCAS C — urgency_level = \"emergency\" :\n→ actions: [{\"type\":\"call_samu\",\"label\":\"Appeler le 15 — SAMU\"}]\n→ suggest_expert: false\n\nTOUS LES AUTRES CAS : actions = []\n\nRÈGLES STRICTES POUR suggest_expert :\n- suggest_expert = true si : patient demande explicitement OU situation complexe après plusieurs échanges\n- suggest_expert = false pour les cas simples même si confiance faible — pose plus de questions dans ce cas\n\nRÈGLES STRICTES POUR escalate :\n- escalate = true UNIQUEMENT si : urgency_level = \"emergency\" OU patient demande explicitement un médecin\n- escalate = false pour tout le reste, y compris urgent et moderate`;\n\nconst isImage  = data.isImage === true;\nconst mediaUrl = data.mediaUrl || null;\n\nlet userMessage;\nif (isImage && mediaUrl) {\n  userMessage = {\n    role: 'user',\n    content: [\n      {\n        type: 'text',\n        text: data.content || 'Le patient a envoyé une image médicale. Analysez-la : identifiez le médicament, la blessure, l\\'éruption ou toute condition visible. Donnez vos observations et conseils médicaux.',\n      },\n      {\n        type: 'image_url',\n        image_url: { url: mediaUrl },\n      },\n    ],\n  };\n} else {\n  userMessage = { role: 'user', content: data.content };\n}\n\nconst messages = [\n  { role: 'system', content: systemPrompt },\n  ...data.historyMessages,\n  userMessage\n];\n\n// Pre-build the Groq request body so the HTTP node can use it as-is.\n// Vision models (llama-3.2-11b-vision-preview) do NOT support response_format: json_object,\n// so we omit it for image requests and rely on the system prompt + parse fallback.\nconst groqBody = JSON.stringify(Object.assign(\n  {\n    model:       isImage ? 'llama-3.2-11b-vision-preview' : data.groqModel,\n    messages,\n    temperature: 0.3,\n    max_tokens:  1024,\n  },\n  isImage ? {} : { response_format: { type: 'json_object' } }\n));\n\nreturn [{\n  json: {\n    ...data,\n    messages,\n    temperature: 0.3,\n    isImage,\n    groqBody,\n  }\n}];"
+      },
+      "id": "1368751e-5e60-480c-a5a3-db093785d2a2",
+      "name": "Build AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-160, 1296]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.groqBody }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "3ef1146a-64c6-4a32-a2da-a817aa4f8c0a",
+      "name": "Call Groq AI (Chat Completions)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [64, 1296],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "F9PQJn8MUUr6pP28",
+          "name": "Header Auth account"
+        }
+      },
+      "notes": "groqApiKey and groqBaseUrl come from $json (set by Load Config → passed through each Code node). No $env needed here."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get config passed through the chain\nconst prevData  = $('Build AI Prompt').first().json;\nconst groqReply = $input.first().json;\n\n// ─── Extract raw text from Groq ────────────────────────────────────────────\nlet rawContent = '';\ntry {\n  rawContent = groqReply.choices[0].message.content;\n} catch (e) {\n  throw new Error('Groq response malformed: ' + JSON.stringify(groqReply));\n}\n\n// ─── Parse JSON from AI ────────────────────────────────────────────────────\nlet parsed = {};\ntry {\n  const cleaned = rawContent.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  parsed = {\n    language:         'fr',\n    specialty:        'medecine-generale',\n    urgency_level:    'low',\n    confidence:       0.8,\n    escalate:         false,\n    suggest_expert:   false,\n    intent:           null,\n    requires_premium: false,\n    actions:          [],\n    response:         \"Je n'ai pas pu traiter votre demande. Pouvez-vous reformuler ?\"\n  };\n}\n\n// ─── Sanitize urgency and confidence ───────────────────────────────────────\nconst allowedUrgencies = ['low', 'moderate', 'urgent', 'emergency'];\nlet urgency = String(parsed.urgency_level || 'low').toLowerCase();\nif (!allowedUrgencies.includes(urgency)) urgency = 'low';\n\nlet confidence = parseFloat(parsed.confidence ?? 0.8);\nif (Number.isNaN(confidence)) confidence = 0.8;\nconfidence = Math.max(0, Math.min(1, confidence));\n\n// ─── Escalation — trust the AI, only override for explicit cases ────────────\nconst userText = String(prevData.content || '').toLowerCase();\n\nconst patientAskedDoctor =\n  /(médecin|medecin|docteur|doctor|spécialiste|specialiste|expert|rendez-vous|rdv|طبيب|دكتور)/i.test(userText);\n\n// Force escalate only for true emergency or explicit doctor request\n// For urgent/moderate — trust the AI's judgment completely\nconst forceEscalate = urgency === 'emergency' || patientAskedDoctor;\nif (forceEscalate) parsed.escalate = true;\n\n// suggest_expert: trust AI, just block it for emergencies\nconst suggestExpert = parsed.suggest_expert === true && urgency !== 'emergency';\n\n// Validate actions array\nconst actions = Array.isArray(parsed.actions) ? parsed.actions : [];\n\n// ─── Build Laravel callback payload ────────────────────────────────────────\nconst callbackPayload = {\n  message_id:          prevData.messageId,\n  conversation_id:     prevData.conversationId,\n  response:            parsed.response          || '',\n  confidence:          confidence,\n  escalate:            parsed.escalate          ?? forceEscalate,\n  urgency_level:       urgency,\n  specialty_suggested: parsed.specialty         || null,\n  intent:              parsed.intent            || null,\n  suggest_expert:      suggestExpert,\n  requires_premium:    parsed.requires_premium  ?? false,\n  actions:             actions,\n  model:               groqReply.model          || prevData.groqModel || 'llama-3.3-70b-versatile',\n  tokens_used:         groqReply.usage?.total_tokens || 0,\n};\n\n// ─── Fetch best available doctor when AI suggests one ──────────────────────\n// Adds expert_recommendation to callback so Flutter renders the doctor card.\nif (suggestExpert) {\n  try {\n    const specialty = parsed.specialty || 'medecine-generale';\n    const laravelBase = prevData.laravelUrl || 'http://nginx:80';\n    const expertUrl = `${laravelBase}/api/v1/experts?specialty=${encodeURIComponent(specialty)}&available=1&per_page=1&sort=rating`;\n    const expertRes = await fetch(expertUrl, {\n      headers: { 'Accept': 'application/json' },\n    });\n    if (expertRes.ok) {\n      const expertJson = await expertRes.json();\n      const experts = expertJson.data || [];\n      if (experts.length > 0) {\n        const doc = experts[0];\n        callbackPayload.expert_recommendation = {\n          id:        doc.id,\n          name:      doc.user?.name || 'Médecin',\n          specialty: doc.category?.name || specialty,\n          rating:    parseFloat(doc.rating_avg || 0),\n        };\n      }\n    }\n  } catch (_) {\n    // Silent fail — expert card simply won't render, no data lost\n  }\n}\n\nreturn [{\n  json: {\n    callbackPayload,\n    laravelUrl:  prevData.laravelUrl  || 'http://nginx:80',\n    n8nSecret:   prevData.n8nSecret   || 'change-me-in-production',\n    isEmergency: urgency === 'emergency',\n  }\n}];"
+      },
+      "id": "bbda06b8-89ea-4d45-84af-a5a5fe736b35",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [272, 1296]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "emergency-check",
+              "leftValue": "={{ $json.isEmergency }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "98ac6927-4740-447e-8b01-f3efa6f8c601",
+      "name": "Is Emergency?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [496, 1296]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst emergencyBanner = [\n  '🚨 URGENCE MÉDICALE DÉTECTÉE',\n  '',\n  'Appelez immédiatement le 15 (SAMU Maroc) ou rendez-vous aux urgences les plus proches.',\n  '',\n  '─────────────────────────────',\n  ''\n].join('\\n');\n\ndata.callbackPayload.response = emergencyBanner + data.callbackPayload.response;\n\nreturn [{ json: data }];"
+      },
+      "id": "2f1bf030-9ae9-484b-8997-58df1b19b11a",
+      "name": "Add Emergency Banner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 1152]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.laravelUrl }}/api/v1/ai/callback",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-N8N-Secret", "value": "={{ $json.n8nSecret }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Accept",        "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.callbackPayload) }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "0064984e-b4b0-4a30-9079-a83988de3009",
+      "name": "Callback Laravel (Emergency)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [944, 1152]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"processing\", \"message\": \"Workflow accepted. Callback incoming.\" }",
+        "options": { "responseCode": 202 }
+      },
+      "id": "79c1ea69-7d8a-484f-be2e-b118db187338",
+      "name": "Respond 202 to Laravel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1168, 1152]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.laravelUrl }}/api/v1/ai/callback",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-N8N-Secret", "value": "={{ $json.n8nSecret }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Accept",        "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.callbackPayload) }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "39fd358d-50b5-48a8-b756-d4ceafe867e5",
+      "name": "Callback Laravel (Normal)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 1440]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"processing\", \"message\": \"Workflow accepted. Callback incoming.\" }",
+        "options": { "responseCode": 202 }
+      },
+      "id": "fa756d34-b6a0-4138-892a-3ca72eb4dc39",
+      "name": "Respond 202 to Laravel (Normal)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [944, 1440]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive Message from Laravel": {
+      "main": [
+        [{ "node": "Load Config from Env", "type": "main", "index": 0 }]
+      ]
+    },
+    "Load Config from Env": {
+      "main": [
+        [{ "node": "Validate Auth & Extract Payload", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Auth & Extract Payload": {
+      "main": [
+        [{ "node": "Moderate Content (W6)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Moderate Content (W6)": {
+      "main": [
+        [{ "node": "Is Flagged?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Is Flagged?": {
+      "main": [
+        [{ "node": "Callback Laravel (Moderated)", "type": "main", "index": 0 }],
+        [{ "node": "Build AI Prompt", "type": "main", "index": 0 }]
+      ]
+    },
+    "Callback Laravel (Moderated)": {
+      "main": [
+        [{ "node": "Respond 202 (Moderated)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build AI Prompt": {
+      "main": [
+        [{ "node": "Call Groq AI (Chat Completions)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Call Groq AI (Chat Completions)": {
+      "main": [
+        [{ "node": "Parse AI Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [{ "node": "Is Emergency?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Is Emergency?": {
+      "main": [
+        [{ "node": "Add Emergency Banner", "type": "main", "index": 0 }],
+        [{ "node": "Callback Laravel (Normal)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Add Emergency Banner": {
+      "main": [
+        [{ "node": "Callback Laravel (Emergency)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Callback Laravel (Emergency)": {
+      "main": [
+        [{ "node": "Respond 202 to Laravel", "type": "main", "index": 0 }]
+      ]
+    },
+    "Callback Laravel (Normal)": {
+      "main": [
+        [{ "node": "Respond 202 to Laravel (Normal)", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "3d874d8d-032a-41a8-b2a8-dfbcaee7e2d8",
+  "meta": {
+    "instanceId": "05a783d2054ae1f440169519732c6c9b9b87131493bb3af7663261c33a50416b"
+  },
+  "id": "OEk7EXicfx6P40WQ",
+  "tags": []
+}

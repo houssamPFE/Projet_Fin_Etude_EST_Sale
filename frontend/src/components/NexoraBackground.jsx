@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
+import useThemeStore from '../stores/themeStore';
 import './NexoraBackground.css';
 
 function ParticleCanvas() {
   const canvasRef = useRef();
+  const theme = useThemeStore((s) => s.theme);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -21,6 +23,10 @@ function ParticleCanvas() {
     const onMouse = (e) => { mouse.x = e.clientX; mouse.y = e.clientY; };
     window.addEventListener('mousemove', onMouse);
 
+    const isCream = theme === 'cream';
+    const particleColors = isCream ? ['#008753', '#00A566'] : ['#2563EB', '#7C3AED'];
+    const lineColor = isCream ? 'rgba(0,165,102,' : 'rgba(96,165,250,';
+
     const COUNT = 90;
     const particles = Array.from({ length: COUNT }, () => ({
       x:  Math.random() * window.innerWidth,
@@ -28,7 +34,7 @@ function ParticleCanvas() {
       vx: (Math.random() - 0.5) * 0.4,
       vy: (Math.random() - 0.5) * 0.4,
       r:  Math.random() * 1.5 + 0.5,
-      hue: Math.random() > 0.5 ? '#2563EB' : '#7C3AED',
+      hue: particleColors[Math.random() > 0.5 ? 1 : 0],
     }));
 
     const draw = () => {
@@ -69,7 +75,7 @@ function ParticleCanvas() {
             ctx.beginPath();
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(96,165,250,${alpha})`;
+            ctx.strokeStyle = `${lineColor}${alpha})`;
             ctx.lineWidth = 0.5;
             ctx.stroke();
           }
@@ -85,7 +91,7 @@ function ParticleCanvas() {
       window.removeEventListener('resize', resize);
       window.removeEventListener('mousemove', onMouse);
     };
-  }, []);
+  }, [theme]);
 
   return <canvas ref={canvasRef} className="nexora-canvas" />;
 }
@@ -93,6 +99,9 @@ function ParticleCanvas() {
 export default function NexoraBackground() {
   return (
     <div className="nexora-bg" aria-hidden="true">
+      {/* Particle Canvas */}
+      <ParticleCanvas />
+
       {/* Dot grid */}
       <div className="nexora-grid" />
 
@@ -103,9 +112,6 @@ export default function NexoraBackground() {
 
       {/* Noise overlay */}
       <div className="nexora-noise" />
-
-      {/* Particle network */}
-      <ParticleCanvas />
     </div>
   );
 }

@@ -36,7 +36,11 @@ class ConversationEscalateController extends Controller
             ], 422);
         }
 
-        $conversation = $this->conversationService->escalate($conversation);
+        $conversation = $this->conversationService->escalate(
+            $conversation,
+            $request->string('specialty')->toString() ?: null,
+            $request->integer('expert_id') ?: null,
+        );
 
         $message = $conversation->expert_id
             ? 'Conversation transférée à un expert.'

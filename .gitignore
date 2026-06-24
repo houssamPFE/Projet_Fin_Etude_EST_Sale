@@ -51,3 +51,10 @@ AGENTS.md
 .cursorrules
 TEAM.md
 USER_MANAGEMENT_GUIDE.md
+AI_EXPERT_ESCALATION_AND_PAYMENTS.md
+
+# ─── Temporary / Development Trace ────────────────────────────────────────────
+*analysis*.txt
+*.analysis
+scratch/
+**/scratch/

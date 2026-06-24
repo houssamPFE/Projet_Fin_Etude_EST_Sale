@@ -62,10 +62,25 @@ dependencies:
   path_provider: ^2.1.4
   permission_handler: ^11.3.1
 
+  # Payment WebView (CMI redirect flow)
+  webview_flutter: ^4.10.0
+  image_cropper: ^12.2.1
+
+  # Open downloaded files (PDF report)
+  open_file: ^3.3.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/nexora1.png"
+  adaptive_icon_background: "#111631" # Use matching Nexora dark blue or clean background
+  adaptive_icon_foreground: "assets/images/nexora1.png"
 
 flutter:
   uses-material-design: true

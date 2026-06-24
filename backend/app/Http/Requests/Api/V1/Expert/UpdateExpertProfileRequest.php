@@ -15,8 +15,8 @@ class UpdateExpertProfileRequest extends FormRequest
     {
         return [
             'bio'            => ['nullable', 'string', 'max:2000'],
+            'city'           => ['nullable', 'string', 'max:100'],
             'certifications' => ['nullable', 'array'],
-            'hourly_rate'    => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
             'category_id'    => ['nullable', 'exists:categories,id'],
         ];
     }
@@ -25,7 +25,6 @@ class UpdateExpertProfileRequest extends FormRequest
     {
         return [
             'category_id.exists'  => 'La catégorie sélectionnée est invalide.',
-            'hourly_rate.numeric' => 'Le tarif horaire doit être un nombre.',
             'bio.max'             => 'La bio ne doit pas dépasser 2000 caractères.',
         ];
     }

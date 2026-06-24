@@ -1,35 +1,49 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Star, MessageSquare, Wallet, ToggleLeft, ToggleRight, Loader2, TrendingUp } from 'lucide-react';
+import {
+  Star, MessageSquare, Wallet, Loader2, TrendingUp,
+  ArrowRight, Clock, CheckCircle2, XCircle, Pencil,
+  BadgeCheck, MapPin,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useExpertDashboard, useToggleAvailability } from '../../hooks/useExpertPanel';
+import { useExpertDashboard, useToggleAvailability, useExpertProfile } from '../../hooks/useExpertPanel';
 import { useConversations } from '../../hooks/useConversations';
 import useAuthStore from '../../stores/authStore';
 import toast from 'react-hot-toast';
 import './ExpertDashboardPage.css';
 
-function StatCard({ label, value, icon: Icon, color, bg, delay }) {
+const STATUS_META = {
+  open:   { label: 'Ouverte',   color: '#60A5FA', bg: 'rgba(37,99,235,0.1)'   },
+  ai:     { label: 'En attente', color: '#A78BFA', bg: 'rgba(124,58,237,0.1)' },
+  expert: { label: 'En cours',  color: '#34D399', bg: 'rgba(16,185,129,0.1)'  },
+  closed: { label: 'Fermée',    color: '#64748B', bg: 'rgba(100,116,139,0.1)' },
+};
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60)    return 'À l\'instant';
+  if (diff < 3600)  return `${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} h`;
+  return `${Math.floor(diff / 86400)} j`;
+}
+
+function StarRating({ value }) {
+  const stars = Math.round(value ?? 0);
   return (
-    <motion.div
-      className="estat-card"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay }}
-    >
-      <div className="estat-icon" style={{ background: bg, color }}>
-        <Icon size={22} />
-      </div>
-      <div className="estat-info">
-        <span className="estat-value">{value ?? '—'}</span>
-        <span className="estat-label">{label}</span>
-      </div>
-    </motion.div>
+    <span className="edash-stars">
+      {[1,2,3,4,5].map(i => (
+        <Star key={i} size={13} className={i <= stars ? 'edash-star--on' : 'edash-star--off'} />
+      ))}
+    </span>
   );
 }
 
 export default function ExpertDashboardPage() {
-  const user = useAuthStore((s) => s.user);
-  const { data: stats, isLoading } = useExpertDashboard();
-  const { data: convsData } = useConversations({ per_page: 5 });
+  const user        = useAuthStore((s) => s.user);
+  const { data: stats,   isLoading }           = useExpertDashboard();
+  const { data: profile, isLoading: profLoad } = useExpertProfile();
+  const { data: convsData }                    = useConversations({ per_page: 5 });
   const { mutateAsync: toggleAvailability, isPending: toggling } = useToggleAvailability();
 
   const handleToggle = async () => {
@@ -42,94 +56,186 @@ export default function ExpertDashboardPage() {
   };
 
   const conversations = convsData?.data ?? [];
+  const firstName     = user?.name?.split(' ')[0] ?? 'Docteur';
+
+  const statItems = useMemo(() => [
+    { label: 'Consultations totales',  value: stats?.total_conversations ?? '—',  icon: MessageSquare },
+    { label: 'Consultations actives',  value: stats?.active_conversations ?? '—', icon: TrendingUp    },
+    { label: 'Note moyenne',           value: stats?.rating_avg ? `${Number(stats.rating_avg).toFixed(1)} ★` : '—', icon: Star },
+    { label: 'Solde disponible',       value: stats?.wallet_balance ? `${Number(stats.wallet_balance).toFixed(0)} MAD` : '0 MAD', icon: Wallet },
+  ], [stats]);
 
   return (
-    <div className="expert-dashboard">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+    <div className="edash-page">
 
-        <div className="expert-dash-header">
+      {/* ── Header ── */}
+      <div className="edash-header">
+        <div className="edash-header-content">
           <div>
-            <h1 className="page-title">Bonjour, {user?.name?.split(' ')[0]} 👋</h1>
-            <p className="page-subtitle">Tableau de bord expert</p>
+            <p className="edash-eyebrow">Tableau de bord</p>
+            <h1 className="edash-title">Bonjour, Dr. {firstName}</h1>
+            <p className="edash-subtitle">
+              {isLoading
+                ? 'Chargement…'
+                : `${stats?.active_conversations ?? 0} consultation${(stats?.active_conversations ?? 0) !== 1 ? 's' : ''} active${(stats?.active_conversations ?? 0) !== 1 ? 's' : ''} en cours`
+              }
+            </p>
           </div>
           <button
-            className={`availability-btn ${stats?.is_available ? 'availability-btn--on' : 'availability-btn--off'}`}
+            className={`edash-toggle ${stats?.is_available ? 'edash-toggle--on' : 'edash-toggle--off'}`}
             onClick={handleToggle}
             disabled={toggling || isLoading}
           >
-            {toggling ? (
-              <Loader2 size={18} className="spin" />
-            ) : stats?.is_available ? (
-              <ToggleRight size={22} />
-            ) : (
-              <ToggleLeft size={22} />
-            )}
+            {toggling
+              ? <Loader2 size={15} className="spin" />
+              : stats?.is_available ? <CheckCircle2 size={15} /> : <XCircle size={15} />
+            }
             {stats?.is_available ? 'Disponible' : 'Occupé'}
           </button>
         </div>
+      </div>
 
+      <div className="edash-divider" />
+
+      <div className="edash-body">
         {isLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-            <Loader2 size={32} className="spin" style={{ color: 'var(--primary-500)' }} />
-          </div>
+          <div className="edash-loading"><Loader2 size={28} className="spin" /></div>
         ) : (
           <>
-            <div className="expert-stats-grid">
-              <StatCard label="Conversations totales" value={stats?.total_conversations} icon={MessageSquare} color="var(--primary-500)" bg="rgba(139,92,246,0.1)" delay={0} />
-              <StatCard label="Conversations actives" value={stats?.active_conversations} icon={TrendingUp} color="#14b8a6" bg="rgba(20,184,166,0.1)" delay={0.08} />
-              <StatCard label="Note moyenne" value={stats?.rating_avg ? Number(stats.rating_avg).toFixed(1) + ' ★' : '—'} icon={Star} color="#f59e0b" bg="rgba(245,158,11,0.1)" delay={0.16} />
-              <StatCard label="Solde wallet" value={stats?.wallet_balance ? `${stats.wallet_balance} MAD` : '0 MAD'} icon={Wallet} color="#10b981" bg="rgba(16,185,129,0.1)" delay={0.24} />
+            {/* ── Stats ── */}
+            <div className="edash-section-label"><span>Vue d'ensemble</span></div>
+            <div className="edash-stats-grid">
+              {statItems.map(({ label, value, icon: Icon }, i) => (
+                <motion.div
+                  key={label}
+                  className="edash-stat"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: i * 0.07 }}
+                >
+                  <div className="edash-stat-icon-wrap"><Icon size={17} /></div>
+                  <span className="edash-stat-value">{value}</span>
+                  <span className="edash-stat-label">{label}</span>
+                </motion.div>
+              ))}
             </div>
 
-            <div className="expert-dash-grid">
-              {/* Recent conversations */}
-              <div className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
-                  <h3 style={{ fontWeight: 600, margin: 0 }}>Conversations récentes</h3>
-                  <Link to="/expert/conversations" style={{ fontSize: 13, color: 'var(--primary-500)' }}>Voir tout</Link>
+            {/* ── Main grid ── */}
+            <div className="edash-section-label"><span>Activité</span></div>
+            <div className="edash-grid">
+
+              {/* ── Conversations ── */}
+              <motion.div className="edash-card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }}>
+                <div className="edash-card-head">
+                  <h3 className="edash-card-title">Conversations récentes</h3>
+                  <Link to="/conversations" className="edash-link-sm">
+                    Voir tout <ArrowRight size={12} />
+                  </Link>
                 </div>
+
                 {conversations.length === 0 ? (
-                  <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: 0 }}>Aucune conversation assignée.</p>
+                  <p className="edash-empty">Aucune conversation assignée.</p>
                 ) : (
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-                    {conversations.map((conv) => (
-                      <li key={conv.id}>
-                        <Link
-                          to={`/conversations/${conv.id}`}
-                          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', padding: 10, borderRadius: 'var(--radius-md)', textDecoration: 'none', color: 'inherit', transition: 'background 0.15s' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <div style={{ flex: 1 }}>
-                            <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{conv.title ?? `Conversation #${conv.id}`}</p>
-                            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>{conv.category?.name}</p>
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
+                  <ul className="edash-conv-list">
+                    {conversations.map((conv) => {
+                      const sm = STATUS_META[conv.status] ?? STATUS_META.open;
+                      return (
+                        <li key={conv.id}>
+                          <Link to={`/conversations/${conv.id}`} className="edash-conv-item">
+                            <div className="edash-conv-avatar">
+                              {conv.title?.charAt(0)?.toUpperCase() ?? '#'}
+                            </div>
+                            <div className="edash-conv-info">
+                              <span className="edash-conv-title">{conv.title ?? `Consultation #${conv.id}`}</span>
+                              <span className="edash-conv-meta">
+                                {conv.category?.name && <span>{conv.category.name}</span>}
+                                <span className="edash-conv-time"><Clock size={10} /> {timeAgo(conv.updated_at)}</span>
+                              </span>
+                            </div>
+                            <span className="edash-status-pill" style={{ color: sm.color, background: sm.bg }}>
+                              {sm.label}
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
-              </div>
+              </motion.div>
 
-              {/* Quick links */}
-              <div className="card">
-                <h3 style={{ fontWeight: 600, margin: '0 0 var(--space-md)' }}>Accès rapide</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-                  {[
-                    { to: '/expert/profile', label: 'Modifier mon profil', color: 'var(--primary-500)', bg: 'rgba(139,92,246,0.08)' },
-                    { to: '/expert/wallet',  label: 'Mon portefeuille',    color: '#10b981',            bg: 'rgba(16,185,129,0.08)' },
-                    { to: '/conversations',  label: 'Mes conversations',   color: '#14b8a6',            bg: 'rgba(20,184,166,0.08)' },
-                  ].map(({ to, label, color, bg }) => (
-                    <Link key={to} to={to} style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderRadius: 'var(--radius-md)', textDecoration: 'none', fontWeight: 500, fontSize: 14, color, background: bg, transition: 'opacity 0.15s' }}>
-                      {label}
-                    </Link>
-                  ))}
+              {/* ── Expert profile card ── */}
+              <motion.div className="edash-card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }}>
+                <div className="edash-card-head">
+                  <h3 className="edash-card-title">Mon profil</h3>
+                  <Link to="/expert/profile" className="edash-link-sm">
+                    <Pencil size={12} /> Modifier
+                  </Link>
                 </div>
-              </div>
+
+                {profLoad ? (
+                  <div className="edash-loading" style={{ padding: '24px 0' }}><Loader2 size={20} className="spin" /></div>
+                ) : (
+                  <div className="edash-profile-card">
+
+                    {/* Avatar + name */}
+                    <div className="edash-profile-top">
+                      <div className="edash-profile-avatar">
+                        {user?.avatar_url
+                          ? <img src={user.avatar_url} alt={user.name} />
+                          : user?.name?.charAt(0)?.toUpperCase()
+                        }
+                      </div>
+                      <div className="edash-profile-identity">
+                        <span className="edash-profile-name">
+                          Dr. {user?.name}
+                          <BadgeCheck size={14} className="edash-profile-badge" />
+                        </span>
+                        <span className="edash-profile-specialty">
+                          {profile?.category?.name ?? 'Spécialité non renseignée'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Rating */}
+                    <div className="edash-profile-row">
+                      <StarRating value={stats?.rating_avg} />
+                      <span className="edash-profile-rating-val">
+                        {stats?.rating_avg ? Number(stats.rating_avg).toFixed(1) : '0.0'}
+                        <span className="edash-profile-rating-count">({stats?.total_reviews ?? 0} avis)</span>
+                      </span>
+                    </div>
+
+                    {/* Bio */}
+                    {profile?.bio && (
+                      <p className="edash-profile-bio">{profile.bio}</p>
+                    )}
+
+                    {/* Meta */}
+                    <div className="edash-profile-meta">
+                      <span className="edash-profile-meta-item">
+                        <MapPin size={12} /> Maroc
+                      </span>
+                    </div>
+
+                    {/* Wallet shortcut */}
+                    <Link to="/expert/wallet" className="edash-wallet-row">
+                      <div className="edash-wallet-left">
+                        <Wallet size={14} />
+                        <span>Solde disponible</span>
+                      </div>
+                      <span className="edash-wallet-amount">
+                        {stats?.wallet_balance ? `${Number(stats.wallet_balance).toFixed(2)} MAD` : '0.00 MAD'}
+                      </span>
+                    </Link>
+
+                  </div>
+                )}
+              </motion.div>
+
             </div>
           </>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }

@@ -15,7 +15,7 @@ class OrDivider extends StatelessWidget {
         Expanded(
           child: Container(
             height: 1,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [Colors.transparent, AppColors.border],
               ),
@@ -29,7 +29,7 @@ class OrDivider extends StatelessWidget {
         Expanded(
           child: Container(
             height: 1,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [AppColors.border, Colors.transparent],
               ),

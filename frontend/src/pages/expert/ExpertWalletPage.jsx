@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, TrendingUp, ArrowDownCircle, Loader2, ArrowUpCircle } from 'lucide-react';
+import { Wallet, TrendingUp, ArrowDownCircle, Loader2, ArrowUpCircle, Clock } from 'lucide-react';
 import { useExpertWallet, useExpertTransactions } from '../../hooks/useExpertPanel';
 import './ExpertWalletPage.css';
 
@@ -30,66 +30,75 @@ export default function ExpertWalletPage() {
   const transactions = txData?.data ?? [];
 
   return (
-    <div className="expert-wallet-page">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-
-        <div style={{ marginBottom: 'var(--space-lg)' }}>
-          <h1 className="page-title">Mon portefeuille</h1>
-          <p className="page-subtitle">Suivi de vos gains et transactions</p>
+    <div className="ewallet-page">
+      {/* Header */}
+      <div className="ewallet-header">
+        <div className="ewallet-header-bg" />
+        <div className="ewallet-header-content">
+          <div>
+            <p className="ewallet-eyebrow">Finances</p>
+            <h1 className="ewallet-title">Mon portefeuille</h1>
+            <p className="ewallet-subtitle">Suivi de vos gains et transactions</p>
+          </div>
         </div>
+      </div>
 
+      <div className="ewallet-body">
         {walletLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-            <Loader2 size={32} className="spin" style={{ color: 'var(--primary-500)' }} />
+          <div className="ewallet-loading">
+            <Loader2 size={32} className="spin" />
           </div>
         ) : (
           <>
-            <div className="wallet-cards">
-              <motion.div className="wallet-card wallet-card--balance" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}>
-                <div className="wallet-card-icon"><Wallet size={24} /></div>
-                <div>
-                  <p className="wallet-card-label">Solde disponible</p>
-                  <p className="wallet-card-value">{wallet?.balance ?? '0.00'} MAD</p>
-                </div>
-              </motion.div>
-              <motion.div className="wallet-card wallet-card--earned" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
-                <div className="wallet-card-icon"><TrendingUp size={24} /></div>
-                <div>
-                  <p className="wallet-card-label">Total gagné</p>
-                  <p className="wallet-card-value">{wallet?.total_earned ?? '0.00'} MAD</p>
-                </div>
-              </motion.div>
-              <motion.div className="wallet-card wallet-card--withdrawn" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}>
-                <div className="wallet-card-icon"><ArrowDownCircle size={24} /></div>
-                <div>
-                  <p className="wallet-card-label">Total retiré</p>
-                  <p className="wallet-card-value">{wallet?.total_withdrawn ?? '0.00'} MAD</p>
-                </div>
-              </motion.div>
+            {/* KPI Cards */}
+            <div className="ewallet-cards">
+              {[
+                { key: 'balance',   label: 'Solde disponible', value: wallet?.balance,         icon: <Wallet size={22} />,          mod: 'balance'   },
+                { key: 'earned',    label: 'Total gagné',      value: wallet?.total_earned,     icon: <TrendingUp size={22} />,      mod: 'earned'    },
+                { key: 'withdrawn', label: 'Total retiré',     value: wallet?.total_withdrawn,  icon: <ArrowDownCircle size={22} />, mod: 'withdrawn' },
+              ].map(({ key, label, value, icon, mod }, i) => (
+                <motion.div
+                  key={key}
+                  className={`ewallet-card ewallet-card--${mod}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.08 }}
+                >
+                  <div className="ewallet-card-icon">{icon}</div>
+                  <div className="ewallet-card-body">
+                    <p className="ewallet-card-label">{label}</p>
+                    <p className="ewallet-card-value">{value ?? '0.00'} <span className="ewallet-card-currency">MAD</span></p>
+                  </div>
+                </motion.div>
+              ))}
             </div>
 
-            <div className="card" style={{ marginTop: 'var(--space-lg)' }}>
-              <h3 style={{ fontWeight: 600, margin: '0 0 var(--space-md)' }}>Historique des transactions</h3>
+            {/* Transactions */}
+            <div className="ewallet-section">
+              <div className="ewallet-section-head">
+                <Clock size={15} />
+                <span>Historique des transactions</span>
+              </div>
 
               {txLoading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-                  <Loader2 size={24} className="spin" style={{ color: 'var(--primary-500)' }} />
+                <div className="ewallet-loading">
+                  <Loader2 size={24} className="spin" />
                 </div>
               ) : transactions.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: 14, textAlign: 'center', padding: '40px 0', margin: 0 }}>
-                  Aucune transaction pour le moment.
-                </p>
+                <div className="ewallet-empty">
+                  <Wallet size={32} className="ewallet-empty-icon" />
+                  <p>Aucune transaction pour le moment.</p>
+                </div>
               ) : (
                 <>
                   <div className="tx-list">
                     {transactions.map((tx) => <TransactionRow key={tx.id} tx={tx} />)}
                   </div>
-
                   {txData?.meta?.last_page > 1 && (
-                    <div className="pagination" style={{ marginTop: 'var(--space-md)' }}>
-                      <button className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Précédent</button>
-                      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Page {page} / {txData.meta.last_page}</span>
-                      <button className="btn btn-secondary btn-sm" disabled={page === txData.meta.last_page} onClick={() => setPage(p => p + 1)}>Suivant</button>
+                    <div className="ewallet-pagination">
+                      <button className="ewallet-pag-btn" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Précédent</button>
+                      <span className="ewallet-pag-info">Page {page} / {txData.meta.last_page}</span>
+                      <button className="ewallet-pag-btn" disabled={page === txData.meta.last_page} onClick={() => setPage(p => p + 1)}>Suivant</button>
                     </div>
                   )}
                 </>
@@ -97,7 +106,7 @@ export default function ExpertWalletPage() {
             </div>
           </>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }

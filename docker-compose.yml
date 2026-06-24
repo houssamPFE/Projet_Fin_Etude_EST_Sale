@@ -90,6 +90,23 @@ services:
       - mysql
       - redis
 
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nexora_scheduler
+    restart: unless-stopped
+    command: >
+      sh -c "while true; do php artisan schedule:run; sleep 60; done"
+    working_dir: /var/www
+    volumes:
+      - ./backend:/var/www
+    networks:
+      - nexora
+    depends_on:
+      - mysql
+      - redis
+
   n8n:
     image: n8nio/n8n:latest
     container_name: nexora_n8n
@@ -101,10 +118,31 @@ services:
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       - WEBHOOK_URL=http://n8n:5678
+      # Shared secret — must match N8N_SECRET in Laravel .env
+      - N8N_SECRET=${N8N_SECRET:-change-me-in-production}
+      # Laravel callback base URL (internal Docker network)
+      - LARAVEL_URL=http://nginx:80
+      # LLM — Groq (free) by default; swap for OpenAI by changing these two lines
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GROQ_BASE_URL=https://api.groq.com/openai/v1
+      - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
+      # Qdrant (vector search) — internal Docker network
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-nexora_knowledge}
+      # n8n persistence & execution settings
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
+      # Allow Code nodes to read environment variables via $env.*
+      - NODE_FUNCTION_ALLOW_ENV=true
     volumes:
       - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/home/node/.n8n/workflows:ro
     networks:
       - nexora
+    depends_on:
+      - nginx
+      - qdrant
 
   qdrant:
     image: qdrant/qdrant:latest

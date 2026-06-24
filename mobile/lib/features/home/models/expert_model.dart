@@ -9,7 +9,6 @@ class ExpertModel {
   final String specialty; // category name
   final String specialtyIcon;
   final String bio;
-  final int hourlyRate;
   final double rating;
   final int reviewCount;
   final bool isAvailable;
@@ -25,7 +24,6 @@ class ExpertModel {
     required this.specialty,
     required this.specialtyIcon,
     required this.bio,
-    required this.hourlyRate,
     required this.rating,
     required this.reviewCount,
     required this.isAvailable,
@@ -64,7 +62,6 @@ class ExpertModel {
       specialty: category?['name'] as String? ?? 'Unknown',
       specialtyIcon: category?['icon'] as String? ?? '🏥',
       bio: json['bio'] as String? ?? '',
-      hourlyRate: _parseIntOrDouble(json['hourly_rate']).toInt(),
       rating: _parseIntOrDouble(json['rating_avg']),
       reviewCount: json['total_reviews'] as int? ?? 0,
       isAvailable: json['is_available'] as bool? ?? false,

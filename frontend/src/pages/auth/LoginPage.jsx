@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Wrench } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import api from '../../lib/api';
@@ -14,7 +14,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading,     setLoading]     = useState(false);
+  const [maintenance, setMaintenance] = useState(false);
 
   // 2FA state
   const [show2fa, setShow2fa] = useState(false);
@@ -30,9 +31,16 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
     clearError();
+    setMaintenance(false);
     setLoading(true);
 
     const result = await login(email, password);
+
+    if (result.maintenance) {
+      setMaintenance(true);
+      setLoading(false);
+      return;
+    }
 
     if (result.requires2fa) {
       setTwoFactorToken(result.token);
@@ -148,6 +156,16 @@ export default function LoginPage() {
     <div className="auth-page">
       <h2 className="auth-title">Bon retour !</h2>
       <p className="auth-subtitle">Connectez-vous à votre compte Nexora</p>
+
+      {maintenance && (
+        <div className="auth-maintenance-banner">
+          <Wrench size={16} />
+          <div>
+            <strong>Plateforme en maintenance</strong>
+            <p>Nexora est temporairement indisponible. Veuillez réessayer dans quelques instants.</p>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleLogin} className="auth-form">
         <div className="form-group">

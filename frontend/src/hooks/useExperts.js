@@ -40,7 +40,7 @@ export function useCategories() {
     queryKey: ['categories'],
     queryFn: async () => {
       const { data } = await api.get('/categories');
-      return data.data;
+      return Array.isArray(data.data) ? data.data : [];
     },
     staleTime: 1000 * 60 * 10,
   });

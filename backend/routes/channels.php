@@ -45,6 +45,14 @@ Broadcast::channel('expert.{expertId}', function (User $user, int $expertId) {
 });
 
 /**
+ * Expert-presence channel — any authenticated user can subscribe.
+ * Used by ExpertDetailPage to receive instant online/offline updates for a specific expert.
+ */
+Broadcast::channel('expert-presence.{expertId}', function (User $user) {
+    return (bool) $user->id;
+});
+
+/**
  * Presence channel for online experts.
  * Returns user info for presence tracking.
  */

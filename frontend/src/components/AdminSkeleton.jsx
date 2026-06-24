@@ -59,6 +59,58 @@ export function SettingsSkeleton({ rows = 3 }) {
   );
 }
 
+export function ChartSkeleton({ height = 180 }) {
+  return (
+    <div style={{ padding: '0.75rem 1rem 1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height }}>
+        {[55, 80, 40, 95, 60, 75, 45].map((h, i) => (
+          <div
+            key={i}
+            className="sk-block"
+            style={{ flex: 1, height: `${h}%`, borderRadius: 3 }}
+          />
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+        {[...Array(7)].map((_, i) => (
+          <div key={i} className="sk-block" style={{ width: 28, height: 10 }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function DonutSkeleton() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1.5rem 1rem', gap: 12 }}>
+      <div className="sk-block" style={{ width: 140, height: 140, borderRadius: '50%' }} />
+      <div style={{ display: 'flex', gap: 12 }}>
+        <div className="sk-block" style={{ width: 60, height: 10 }} />
+        <div className="sk-block" style={{ width: 60, height: 10 }} />
+      </div>
+    </div>
+  );
+}
+
+export function MiniTableSkeleton({ rows = 4 }) {
+  return (
+    <div className="sk-mini-wrap">
+      <div className="sk-mini-head">
+        {[40, 30, 20, 15].map((w, i) => (
+          <div key={i} className="sk-block" style={{ flex: w, height: 10 }} />
+        ))}
+      </div>
+      {[...Array(rows)].map((_, r) => (
+        <div key={r} className="sk-mini-row">
+          {[40, 30, 20, 15].map((w, i) => (
+            <div key={i} className="sk-block" style={{ flex: w, height: 12 }} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function KbSkeleton({ count = 4 }) {
   return (
     <div className="sk-kb">

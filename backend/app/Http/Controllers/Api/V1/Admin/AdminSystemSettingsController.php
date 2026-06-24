@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SystemSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 
 class AdminSystemSettingsController extends Controller
@@ -57,6 +58,10 @@ class AdminSystemSettingsController extends Controller
         foreach ($validated as $key => $value) {
             SystemSetting::set($key, $value);
         }
+
+        // Flush cached values so changes take effect immediately.
+        Cache::forget('sys:maintenance_mode');
+        Cache::forget('sys:allow_registrations');
 
         return response()->json([
             'message' => 'Paramètres mis à jour.',

@@ -1707,114 +1707,193 @@ function TestimonialCard({
 /* ---------------------------------------------------------
    10. Pricing
    --------------------------------------------------------- */
+function PricingCard({
+  icon, name, price, period, badge, badgeGradient, highlight, glow,
+  features, locked, consultations, cta, ctaHref, ctaGradient,
+  delay,
+}: {
+  icon: string; name: string; price: number | string; period?: string;
+  badge?: string; badgeGradient?: string; highlight?: boolean; glow?: boolean;
+  features: string[]; locked?: string[]; consultations?: number;
+  cta: string; ctaHref: string; ctaGradient?: string; delay: number;
+}) {
+  return (
+    <div className={`nexora-reveal relative flex flex-col${highlight ? ' z-10' : ''}`} data-delay={delay}>
+      {glow && (
+        <div
+          aria-hidden
+          className="absolute -inset-[1px] rounded-3xl opacity-70 blur-[2px]"
+          style={{ background: "linear-gradient(135deg,#6d28d9,#7c3aed,#2563eb)" }}
+        />
+      )}
+      <div
+        className={`relative flex h-full flex-col rounded-3xl border p-8 backdrop-blur-xl${
+          highlight
+            ? ' border-[#7C3AED]/40 bg-[#0b1120]/80 shadow-[0_30px_80px_-20px_rgba(124,58,237,0.4)]'
+            : ' border-white/10 bg-white/[0.03]'
+        }`}
+      >
+        {badge && (
+          <div
+            className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-xs font-bold tracking-wide uppercase text-white"
+            style={{ background: badgeGradient ?? "linear-gradient(135deg,#2563EB,#7C3AED)" }}
+          >
+            {badge}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 text-sm text-white/70">
+          <span className="text-2xl">{icon}</span>
+          {name}
+        </div>
+
+        <div className="mt-5">
+          {typeof price === 'number' && price === 0 ? (
+            <>
+              <div className="nexora-gradient-text text-5xl font-extrabold tracking-tight">Gratuit</div>
+              <div className="mt-1 text-sm text-white/50">pour toujours</div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-baseline gap-1">
+                <span className="nexora-gradient-text text-5xl font-extrabold tracking-tight">{price}</span>
+                <span className="text-lg font-semibold text-white/60">MAD</span>
+              </div>
+              <div className="mt-1 text-sm text-white/50">{period}</div>
+            </>
+          )}
+        </div>
+
+        {consultations != null && consultations > 0 && (
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#2563EB]/30 bg-[#2563EB]/10 px-3 py-1.5 text-xs font-semibold text-blue-300">
+            <Zap className="h-3 w-3" />
+            {consultations} consultation{consultations > 1 ? 's' : ''} médecin / mois
+          </div>
+        )}
+
+        <ul className="mt-7 space-y-3 text-sm flex-1">
+          {features.map((f) => (
+            <li key={f} className="flex items-start gap-3 text-white/85">
+              <span
+                className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white"
+                style={{ background: ctaGradient ?? "rgba(255,255,255,0.08)" }}
+              >
+                <Check className="h-3 w-3" />
+              </span>
+              {f}
+            </li>
+          ))}
+          {(locked ?? []).map((f) => (
+            <li key={f} className="flex items-start gap-3 text-white/35">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.04]">
+                <X className="h-3 w-3" />
+              </span>
+              {f}
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-8">
+          {ctaGradient ? (
+            <GradientButton href={ctaHref} size="lg" className="w-full justify-center">
+              {cta}
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </GradientButton>
+          ) : (
+            <GhostButton href={ctaHref} size="lg" className="w-full justify-center">
+              {cta}
+            </GhostButton>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Pricing() {
   return (
     <section id="pricing" className="relative px-5 py-28 md:px-8">
       <div className="mx-auto max-w-6xl">
         <SectionHeader
           eyebrow="Tarifs"
-          title={<>Un modèle simple et transparent</>}
-          subtitle="L'IA est toujours gratuite. Payez uniquement si vous voulez un vrai expert humain."
+          title={<>Un abonnement simple, transparent</>}
+          subtitle="L'IA est toujours gratuite. Passez à Pro ou Premium pour consulter de vrais médecins certifiés."
         />
 
-        <div className="grid gap-6 md:grid-cols-2 md:items-stretch">
-          {/* Free / AI */}
-          <div className="nexora-reveal" data-delay={1}>
-            <div className="flex h-full flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-8 backdrop-blur-xl">
-              <div className="flex items-center gap-3 text-sm text-white/70">
-                <span className="text-2xl">🤖</span>
-                Intelligence Artificielle
-              </div>
-              <div className="mt-5">
-                <div className="nexora-gradient-text text-5xl font-extrabold tracking-tight">
-                  Gratuit
-                </div>
-                <div className="mt-1 text-sm text-white/50">pour toujours</div>
-              </div>
-              <ul className="mt-7 space-y-3 text-sm">
-                {[
-                  "Réponses instantanées (< 3s)",
-                  "Disponible 24h/24, 7j/7",
-                  "Support français et arabe",
-                  "Historique illimité",
-                ].map((f) => (
-                  <li key={f} className="flex items-start gap-3 text-white/80">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/80">
-                      <Check className="h-3 w-3" />
-                    </span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-auto pt-8">
-                <GhostButton href="/register" size="lg" className="w-full justify-center">
-                  Commencer gratuitement
-                </GhostButton>
-              </div>
-            </div>
-          </div>
+        <div className="grid gap-6 md:grid-cols-3 md:items-stretch">
+          <PricingCard
+            delay={1}
+            icon="🤖"
+            name="Gratuit"
+            price={0}
+            features={[
+              "Assistant IA médical 24h/24",
+              "Triage des symptômes",
+              "Support français & arabe",
+              "Historique illimité",
+              "Messages vocaux",
+            ]}
+            locked={[
+              "Consultations avec médecin",
+              "Accès aux spécialistes",
+            ]}
+            cta="Commencer gratuitement"
+            ctaHref="/register"
+          />
 
-          {/* Expert — highlighted */}
-          <div className="nexora-reveal relative" data-delay={2}>
-            <div
-              aria-hidden
-              className="absolute -inset-[1px] rounded-3xl opacity-80 blur-[1px]"
-              style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED, #2563EB)" }}
-            />
-            <div className="relative flex h-full flex-col rounded-3xl border border-[#2563EB]/40 bg-[#0b1120]/80 p-8 backdrop-blur-xl shadow-[0_30px_80px_-20px_rgba(37,99,235,0.45)]">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#2563EB] to-[#7C3AED] px-3 py-1 text-xs font-semibold">
-                Le plus populaire
-              </div>
-              <div className="flex items-center gap-3 text-sm text-white/80">
-                <span className="text-2xl">👨‍💼</span>
-                Expert Humain
-              </div>
-              <div className="mt-5">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-sm text-white/60">À partir de</span>
-                </div>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <span className="nexora-gradient-text text-5xl font-extrabold tracking-tight">
-                    100 MAD
-                  </span>
-                  <span className="text-sm text-white/50">/ session</span>
-                </div>
-              </div>
-              <ul className="mt-7 space-y-3 text-sm">
-                {[
-                  "Expert certifié et vérifié",
-                  "Prise en charge immédiate",
-                  "Garanti ou remboursé",
-                  "Paiement sécurisé (Stripe + CMI)",
-                ].map((f) => (
-                  <li key={f} className="flex items-start gap-3 text-white/90">
-                    <span
-                      className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white"
-                      style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}
-                    >
-                      <Check className="h-3 w-3" />
-                    </span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-auto pt-8">
-                <GradientButton href="/experts" size="lg" className="w-full justify-center">
-                  Voir les experts
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </GradientButton>
-              </div>
-            </div>
-          </div>
+          <PricingCard
+            delay={2}
+            icon="⚡"
+            name="Pro"
+            price={249}
+            period="par mois"
+            badge="Populaire"
+            badgeGradient="linear-gradient(135deg,#1d4ed8,#2563eb)"
+            consultations={3}
+            features={[
+              "Tout le plan Gratuit",
+              "3 consultations médecin / mois",
+              "Médecins certifiés & vérifiés",
+              "Réponse sous 15 minutes",
+              "Paiement sécurisé (Stripe + CMI)",
+            ]}
+            cta="Choisir Pro"
+            ctaHref="/register"
+            ctaGradient="linear-gradient(135deg,#1d4ed8,#2563eb)"
+          />
+
+          <PricingCard
+            delay={3}
+            icon="👑"
+            name="Premium"
+            price={449}
+            period="par mois"
+            badge="Meilleure valeur"
+            badgeGradient="linear-gradient(135deg,#6d28d9,#7c3aed)"
+            highlight
+            glow
+            consultations={6}
+            features={[
+              "Tout le plan Pro",
+              "6 consultations médecin / mois",
+              "Médecins prioritaires (top rating)",
+              "Réponse sous 5 minutes",
+              "Support dédié",
+            ]}
+            cta="Choisir Premium"
+            ctaHref="/register"
+            ctaGradient="linear-gradient(135deg,#6d28d9,#7c3aed,#a855f7)"
+          />
         </div>
 
-        {/* Info banner */}
-        <div className="nexora-reveal mt-8">
+        {/* Extra credit note */}
+        <div className="nexora-reveal mt-6">
           <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm text-white/75 backdrop-blur-xl">
             <span className="text-lg">💡</span>
             <p>
-              Notre IA détecte les questions complexes et vous propose un expert{" "}
-              <span className="font-semibold text-white">avant tout paiement</span>.
+              Crédits épuisés avant la fin du mois ?{" "}
+              <span className="font-semibold text-white">Achetez une consultation supplémentaire à 89 MAD</span>{" "}
+              depuis votre espace sans changer de plan. Aucun engagement, annulation à tout moment.
             </p>
           </div>
         </div>
@@ -1834,7 +1913,7 @@ function FAQ() {
     },
     {
       q: "Comment choisir le bon spécialiste ?",
-      a: "Vous pouvez consulter le profil, l'expérience, les tarifs et les avis des médecins. Notre système vous recommande aussi les spécialistes les mieux adaptés à votre situation.",
+      a: "Vous pouvez consulter le profil, l'expérience et les avis des médecins. Notre système vous recommande aussi les spécialistes les mieux adaptés à votre situation.",
     },
     {
       q: "Est-ce que les consultations sont confidentielles ?",
@@ -1842,7 +1921,7 @@ function FAQ() {
     },
     {
       q: "Combien coûte une consultation ?",
-      a: "Les tarifs varient selon le médecin et sa spécialité. En moyenne, entre 200 et 500 DH la consultation. Vous voyez le tarif avant de confirmer.",
+      a: "Nexora fonctionne par abonnement : le plan Pro à 249 MAD/mois inclut 3 consultations médecin, et le plan Premium à 449 MAD/mois en inclut 6. Si vous épuisez vos crédits, vous pouvez acheter une consultation supplémentaire à 89 MAD sans changer de plan.",
     },
     {
       q: "Puis-je obtenir une ordonnance numérique ?",
