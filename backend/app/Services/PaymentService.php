@@ -74,8 +74,6 @@ class PaymentService
 
         Payment::create([
             'user_id'                  => $user->id,
-            'expert_id'                => null,
-            'conversation_id'          => null,
             'amount'                   => $amount,
             'currency'                 => 'MAD',
             'status'                   => PaymentStatus::Pending,
@@ -147,8 +145,6 @@ class PaymentService
 
         Payment::create([
             'user_id'         => $user->id,
-            'expert_id'       => null,
-            'conversation_id' => null,
             'amount'          => $amount,
             'currency'        => 'MAD',
             'status'          => PaymentStatus::Pending,

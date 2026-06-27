@@ -10,6 +10,7 @@ export function useUpdateProfile() {
     mutationFn: (data) => api.put('/users/profile', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['me'] });
+      queryClient.invalidateQueries({ queryKey: ['plan'] }); // re-fetch plan alongside profile
       setUser(); // refresh user in store
     },
   });

@@ -764,9 +764,9 @@ class _PaymentProviderSheet extends StatelessWidget {
         orElse: () => kPlans.first);
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF111631),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.fromLTRB(24, 0, 24, 20 + bottom),
       child: Column(
@@ -777,7 +777,7 @@ class _PaymentProviderSheet extends StatelessWidget {
             margin: const EdgeInsets.only(top: 12, bottom: 20),
             width: 36, height: 4,
             decoration: BoxDecoration(
-              color: Colors.white.withAlpha(30),
+              color: AppColors.border,
               borderRadius: BorderRadius.circular(2),
             ),
           ),

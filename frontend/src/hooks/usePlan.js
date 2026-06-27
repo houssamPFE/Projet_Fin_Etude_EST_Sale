@@ -38,7 +38,7 @@ export function usePlan() {
       return data.data;
     },
     enabled: isAuthenticated,
-    staleTime: 1000 * 60 * 5, // 5 min
+    staleTime: 1000 * 30, // 30s — keeps plan fresh enough for admin changes to propagate
   });
 }
 

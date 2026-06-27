@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.6; margin: 2.5cm; color: #222; }
+  h1 { font-size: 18pt; font-weight: bold; color: #1F3864; page-break-before: always; margin-top: 40px; }
+  h2 { font-size: 15pt; font-weight: bold; color: #2E5496; margin-top: 30px; }
+  h3 { font-size: 13pt; font-weight: bold; color: #375623; margin-top: 22px; }
+  p  { text-align: justify; margin: 8px 0 12px 0; }
+  .figure-placeholder {
+    border: 1.5px dashed #888;
+    background: #F5F8FC;
+    padding: 28px 20px;
+    text-align: center;
+    font-style: italic;
+    color: #555;
+    font-size: 11pt;
+    margin: 18px auto;
+    max-width: 90%;
+    border-radius: 4px;
+  }
+  .figure-caption {
+    text-align: center;
+    font-size: 10.5pt;
+    color: #333;
+    margin-top: -10px;
+    margin-bottom: 22px;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<h1>Chapitre VI — Implémentation des Interfaces Utilisateur (React & Flutter)</h1>
+
+<p>
+Ce chapitre présente l'implémentation des interfaces utilisateur de la plateforme Nexora.
+Le front-end web est développé avec React, tandis que l'application mobile est construite avec Flutter.
+Les interfaces sont organisées par profil utilisateur — Patient, Médecin et Administrateur — afin de
+refléter les parcours distincts propres à chaque rôle.
+</p>
+
+<!-- ===================================================== -->
+<h2>VI.1&nbsp;&nbsp;Interface Web (React)</h2>
+<!-- ===================================================== -->
+
+<p>
+L'interface web React constitue le point d'accès principal à la plateforme pour les utilisateurs
+naviguant depuis un navigateur. Elle est construite autour d'un routeur (React Router v6) et d'un
+système d'état global via Context API, ce qui permet une navigation fluide sans rechargement de page.
+Les appels API sont centralisés dans une couche de services consommant le backend Laravel via
+<code>axios</code>, avec gestion automatique des tokens Sanctum et du rafraîchissement JWT.
+</p>
+
+<!-- ─── VI.1.1 ─── -->
+<h3>VI.1.1&nbsp;&nbsp;Authentification &amp; Onboarding</h3>
+
+<p>
+Les pages d'authentification constituent la porte d'entrée de la plateforme. La page de connexion
+propose un formulaire email/mot de passe accompagné d'un lien de connexion sociale (Google et Facebook
+via OAuth). Après une inscription réussie, un code OTP à six chiffres est envoyé par e-mail via Brevo ;
+l'utilisateur doit le saisir sur l'écran de vérification pour activer son compte. En cas d'authentification
+à deux facteurs activée, une étape supplémentaire exige la saisie du code TOTP généré par l'application
+Google Authenticator.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Page de connexion React ]</div>
+<p class="figure-caption">Figure VI.1 — Page de connexion (React)</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Page d'inscription React ]</div>
+<p class="figure-caption">Figure VI.2 — Page d'inscription (React)</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Vérification email par OTP ]</div>
+<p class="figure-caption">Figure VI.3 — Vérification de l'email par code OTP</p>
+
+<!-- ─── VI.1.2 ─── -->
+<h3>VI.1.2&nbsp;&nbsp;Espace Patient</h3>
+
+<p>
+Le tableau de bord du patient est la première page affichée après connexion. Il présente un accès
+direct aux spécialités médicales disponibles, les consultations récentes et le statut de l'abonnement
+actif (plan Gratuit, Pro ou Premium) avec le nombre de crédits restants. Un bandeau de bienvenue
+rappelle le disclaimer médical obligatoire avant tout démarrage de consultation.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Tableau de bord patient ]</div>
+<p class="figure-caption">Figure VI.4 — Tableau de bord du patient</p>
+
+<p>
+L'interface de chat IA est au cœur de l'expérience patient. Le patient saisit sa question médicale
+dans un champ texte ; la réponse de l'assistant IA (basé sur Groq/LLaMA) apparaît après traitement
+par le workflow n8n W1. Chaque réponse affiche un niveau d'urgence coloré (vert / orange / rouge) et
+un rappel du numéro d'urgence SAMU 141 en cas de situation critique. Un bouton « Connecter un médecin »
+déclenche l'escalade vers un médecin humain, ou ouvre la page d'upgrade si le patient n'a pas de crédits.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Interface de chat avec l'assistant IA ]</div>
+<p class="figure-caption">Figure VI.5 — Interface de chat avec l'assistant IA (Nexora)</p>
+
+<p>
+La page de liste des médecins affiche tous les médecins validés, filtrables par spécialité médicale.
+Chaque carte médecin présente son nom, sa spécialité, sa ville, sa note moyenne et sa disponibilité
+en temps réel. Un clic sur une carte ouvre la page de détail du médecin, qui inclut sa biographie,
+ses certifications et les avis des patients précédents.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Liste des médecins disponibles ]</div>
+<p class="figure-caption">Figure VI.6 — Liste des médecins disponibles (React)</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Page de détail d'un médecin + avis ]</div>
+<p class="figure-caption">Figure VI.7 — Page de détail d'un médecin</p>
+
+<p>
+La page d'upgrade permet au patient de souscrire à un plan Pro (249 MAD/mois, 3 crédits) ou Premium
+(449 MAD/mois, 6 crédits), ou d'acheter un crédit extra à 89 MAD. Le paiement s'effectue via Stripe
+(carte bancaire internationale) ou via CMI (paiement marocain via redirection 3DS). Les plans et
+tarifs sont affichés clairement sous forme de cartes comparatives.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Page de sélection de plan / upgrade ]</div>
+<p class="figure-caption">Figure VI.8 — Page d'upgrade et sélection d'abonnement</p>
+
+<!-- ─── VI.1.3 ─── -->
+<h3>VI.1.3&nbsp;&nbsp;Espace Médecin</h3>
+
+<p>
+Le tableau de bord du médecin synthétise son activité : nombre de consultations réalisées, note
+moyenne, disponibilité, et solde de son wallet Nexora. Des indicateurs en temps réel affichent
+les nouvelles demandes de consultation entrantes via Laravel Reverb, permettant au médecin de
+répondre rapidement aux patients assignés.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Dashboard du médecin ]</div>
+<p class="figure-caption">Figure VI.9 — Tableau de bord du médecin</p>
+
+<p>
+La liste des conversations patients affiche toutes les consultations assignées au médecin,
+avec leur statut (ouverte, en cours, clôturée) et la spécialité concernée. En cliquant sur une
+conversation, le médecin accède à l'historique complet du chat, incluant les échanges IA initiaux
+et les messages du patient, afin d'avoir le contexte médical complet avant de répondre.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Liste des conversations du médecin ]</div>
+<p class="figure-caption">Figure VI.10 — Conversations patients (vue médecin)</p>
+
+<p>
+Le wallet du médecin récapitule ses revenus sur la plateforme. Chaque consultation complétée
+ajoute automatiquement 70 MAD à son solde. La page affiche le solde disponible, le total gagné,
+et l'historique paginé des transactions. Les retraits seront disponibles dans une version ultérieure.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Wallet du médecin (solde + historique) ]</div>
+<p class="figure-caption">Figure VI.11 — Wallet du médecin (solde et transactions)</p>
+
+<!-- ─── VI.1.4 ─── -->
+<h3>VI.1.4&nbsp;&nbsp;Espace Administrateur</h3>
+
+<p>
+L'administration de Nexora est entièrement gérée depuis le back-office React, accessible uniquement
+aux utilisateurs ayant le rôle <em>admin</em>. Il offre une vue globale de la plateforme et des
+outils de modération pour les utilisateurs, les médecins et les paiements.
+</p>
+
+<p>
+Le tableau de bord administrateur affiche les indicateurs clés de la plateforme : nombre total
+d'utilisateurs inscrits, nombre de médecins validés, consultations du mois, et revenus générés
+par les abonnements. Des graphiques synthétiques permettent de visualiser l'évolution de ces
+métriques dans le temps.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Dashboard Admin (KPIs globaux) ]</div>
+<p class="figure-caption">Figure VI.12 — Tableau de bord administrateur (KPIs)</p>
+
+<p>
+La gestion des utilisateurs liste tous les comptes inscrits sur la plateforme. L'administrateur
+peut activer ou désactiver un compte, modifier manuellement le plan d'abonnement et les crédits
+d'un utilisateur. Un champ de recherche et des filtres par rôle permettent de retrouver rapidement
+n'importe quel profil.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Page gestion des utilisateurs (Admin) ]</div>
+<p class="figure-caption">Figure VI.13 — Gestion des utilisateurs (Admin)</p>
+
+<p>
+L'écran de validation des candidatures médecins centralise toutes les demandes en statut
+<em>pending</em>. L'administrateur peut consulter les documents fournis (diplôme, CNIE, numéro INPE
+— Ordre National des Médecins du Maroc), puis valider ou rejeter la candidature en saisissant
+une raison en cas de refus. La vérification du numéro INPE sur le portail cnom.ma est une étape
+obligatoire avant toute validation.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Validation des candidatures médecins ]</div>
+<p class="figure-caption">Figure VI.14 — Validation des candidatures médecins (Admin)</p>
+
+<p>
+La vue des paiements et abonnements offre un historique global de toutes les transactions de la
+plateforme (Stripe et CMI), avec leur statut (complété, en attente, échoué). Des filtres par
+provider, type (abonnement / crédit extra) et période permettent d'effectuer un suivi financier
+précis. Des statistiques de revenus par plan sont également disponibles.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Gestion des paiements (Admin) ]</div>
+<p class="figure-caption">Figure VI.15 — Gestion des paiements et abonnements (Admin)</p>
+
+<p>
+La gestion des spécialités permet à l'administrateur de créer, modifier et désactiver les
+catégories médicales disponibles sur la plateforme (Médecine générale, Pédiatrie, Cardiologie,
+Dermatologie, etc.). Un champ d'ordre de tri permet de contrôler l'affichage de ces spécialités
+dans la liste publique et les filtres de recherche.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Gestion des spécialités (Admin) ]</div>
+<p class="figure-caption">Figure VI.16 — Gestion des spécialités médicales (Admin)</p>
+
+<p>
+La page Sécurité &amp; Authentification à deux facteurs permet à l'administrateur de configurer
+sa propre authentification 2FA via TOTP (Google Authenticator). Un QR code est généré et affiché
+pour enregistrement dans l'application d'authentification. Une fois confirmé par un code valide,
+le 2FA est activé sur le compte admin. Cette page affiche également un journal des connexions
+récentes pour détecter toute activité suspecte.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Page Sécurité &amp; 2FA (Admin) ]</div>
+<p class="figure-caption">Figure VI.17 — Page Sécurité &amp; Authentification à deux facteurs (Admin)</p>
+
+<!-- ─── VI.1.5 ─── -->
+<h3>VI.1.5&nbsp;&nbsp;Page Paramètres (Patient &amp; Médecin)</h3>
+
+<p>
+La page Paramètres est commune aux profils Patient et Médecin. Elle regroupe la gestion du profil
+personnel (nom, email, avatar, langue), la modification du mot de passe, et les préférences de
+notification. Les patients y visualisent également leur plan actif, leurs crédits restants et la
+date d'expiration de leur abonnement. Les médecins y trouvent, en plus, un lien vers la gestion
+de leur profil expert (spécialité, biographie, disponibilité).
+La page Paramètres intègre également un sélecteur de thème visuel : l'utilisateur peut basculer entre
+le thème clair (<em>Light Mode</em>) et le thème sombre (<em>Dark Mode</em>), le choix étant
+persisté localement. Cette fonctionnalité améliore le confort d'utilisation, notamment lors des
+consultations nocturnes ou dans des environnements peu éclairés.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran : Page Paramètres (Patient / Médecin) ]</div>
+<p class="figure-caption">Figure VI.18 — Page Paramètres (partagée entre Patient et Médecin)</p>
+
+
+<!-- ===================================================== -->
+<h2>VI.2&nbsp;&nbsp;Application Mobile Flutter</h2>
+<!-- ===================================================== -->
+
+<p>
+L'application mobile Nexora est développée avec Flutter (Dart), ce qui permet une base de code
+unique déployable sur iOS et Android. La navigation est gérée par GoRouter, les états par Riverpod,
+et les appels réseau par <code>Dio</code> avec intercepteurs JWT. Laravel Reverb alimente les
+mises à jour en temps réel du chat via WebSocket.
+</p>
+
+<!-- ─── VI.2.1 ─── -->
+<h3>VI.2.1&nbsp;&nbsp;Authentification Mobile</h3>
+
+<p>
+Les écrans d'authentification Flutter reprennent les mêmes flux que le web — login email/mot de
+passe, OAuth Google/Facebook, vérification OTP par email — avec une interface adaptée aux formats
+mobile (boutons plein écran, clavier natif, biométrie optionnelle). Les tokens Sanctum sont
+stockés de manière sécurisée dans le Flutter Secure Storage, et le token JWT est automatiquement
+rafraîchi en arrière-plan avant expiration.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran Flutter : Écran de connexion mobile ]</div>
+<p class="figure-caption">Figure VI.19 — Écran de connexion (Flutter Mobile)</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran Flutter : Vérification OTP mobile ]</div>
+<p class="figure-caption">Figure VI.20 — Vérification OTP par email (Flutter Mobile)</p>
+
+<!-- ─── VI.2.2 ─── -->
+<h3>VI.2.2&nbsp;&nbsp;Espace Patient Mobile</h3>
+
+<p>
+L'écran d'accueil du patient mobile présente les spécialités médicales sous forme de grille
+d'icônes, un accès rapide au dernier chat IA actif, et un bandeau de statut de plan. Un bouton
+flottant « Nouvelle consultation » lance immédiatement une conversation avec l'assistant IA dans
+la spécialité sélectionnée.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran Flutter : Écran d'accueil patient ]</div>
+<p class="figure-caption">Figure VI.21 — Écran d'accueil du patient (Flutter Mobile)</p>
+
+<p>
+L'interface de chat mobile supporte les messages texte et les messages audio. L'enregistrement
+vocal se déclenche par un appui long sur le bouton micro ; l'audio est ensuite uploadé sur S3 et
+transcrit automatiquement via Groq Whisper avant traitement par l'IA. Les bulles de messages
+distinguent visuellement les messages patient, IA et médecin. En cas d'urgence détectée, un
+bandeau rouge avec le numéro SAMU 141 s'affiche en tête de conversation.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran Flutter : Interface de chat IA mobile ]</div>
+<p class="figure-caption">Figure VI.22 — Interface de chat IA (Flutter Mobile)</p>
+
+<p>
+La page des experts/médecins sur mobile liste les médecins disponibles avec filtres par spécialité.
+Les cartes médecin affichent la photo de profil, le nom, la spécialité et la note. Le tri est
+possible par note ou par ordre alphabétique. Un badge vert indique la disponibilité en temps réel,
+mis à jour via le canal de présence Reverb <code>experts.online</code>.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran Flutter : Liste des médecins (mobile) ]</div>
+<p class="figure-caption">Figure VI.23 — Liste des médecins disponibles (Flutter Mobile)</p>
+
+<p>
+L'écran de profil patient récapitule les informations personnelles, le plan actif (Free / Pro /
+Premium), le nombre de crédits de consultation disponibles et la date d'expiration. Un bouton
+« Améliorer mon plan » redirige directement vers l'écran d'upgrade si le patient souhaite
+accéder à des consultations médecin supplémentaires.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran Flutter : Profil patient + plan actif ]</div>
+<p class="figure-caption">Figure VI.24 — Profil du patient et statut d'abonnement (Flutter Mobile)</p>
+
+<p>
+L'écran d'upgrade mobile affiche les plans disponibles sous forme de cartes. Lors de la sélection
+du paiement CMI, une WebView intégrée (<code>webview_flutter</code>) charge la page de paiement
+3D Secure de CMI. À l'issue du paiement, l'URL de retour est interceptée pour afficher un écran
+de confirmation ou d'échec, avec mise à jour immédiate du statut du plan dans l'application.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran Flutter : Écran upgrade + paiement CMI ]</div>
+<p class="figure-caption">Figure VI.25 — Écran d'upgrade et paiement CMI (Flutter Mobile)</p>
+
+<!-- ─── VI.2.3 ─── -->
+<h3>VI.2.3&nbsp;&nbsp;Espace Médecin Mobile</h3>
+
+<p>
+Le médecin dispose d'une application mobile dédiée permettant de gérer ses consultations en
+déplacement. Le tableau de bord médecin mobile affiche le nombre de consultations du jour, les
+nouvelles demandes en attente et le solde du wallet. Une notification push FCM est déclenchée
+à chaque nouvelle consultation assignée, ramenant directement le médecin à la conversation
+concernée.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran Flutter : Dashboard du médecin (mobile) ]</div>
+<p class="figure-caption">Figure VI.26 — Tableau de bord du médecin (Flutter Mobile)</p>
+
+<p>
+La liste des conversations patients sur mobile présente les consultations actives et récentes.
+Chaque élément indique le nom du patient, la spécialité, la date de dernière activité et un
+indicateur de message non lu. La conversation s'ouvre sur la même interface de chat en temps
+réel que celle du patient, permettant une réponse fluide depuis l'application mobile.
+</p>
+
+<div class="figure-placeholder">[ INSÉRER ICI — Capture d'écran Flutter : Conversations patients (mobile médecin) ]</div>
+<p class="figure-caption">Figure VI.27 — Conversations patients (vue médecin, Flutter Mobile)</p>
+
+
+<!-- ===================================================== -->
+<h2>VI.3&nbsp;&nbsp;Synthèse</h2>
+<!-- ===================================================== -->
+
+<p>
+L'interface de Nexora — qu'il s'agisse de la version web React ou mobile Flutter — a été conçue
+pour offrir une expérience fluide et cohérente à chacun des trois profils utilisateur. La
+séparation claire des espaces Patient, Médecin et Administrateur, combinée à une page Paramètres
+partagée et à un système de notifications en temps réel, garantit que chaque utilisateur dispose
+exactement des informations et des actions pertinentes à son rôle. La plateforme respecte en
+toutes circonstances les contraintes médicales et légales propres au domaine de la télésanté,
+notamment l'affichage systématique du disclaimer et du numéro d'urgence SAMU 141.
+</p>
+
+</body>
+</html>

@@ -92,6 +92,7 @@ export default function AppLayout() {
   }, [isAdmin, qc]);
 
   const handleLogout = async () => {
+    qc.clear(); // wipe all React Query cache so stale plan/user data never survives a re-login
     await logout();
     navigate('/login');
   };
